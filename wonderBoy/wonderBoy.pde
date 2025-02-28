@@ -383,6 +383,10 @@ void keyPressed(){
   else if (key == 'a' && isOnPlatforms(player, platforms)){
     player.change_y = -JUMP_SPEED;
   }
+  
+  else if (key == 'space' && player.attacking == false) {
+    player.attacking = true;
+  }
 }
 
 void keyReleased(){

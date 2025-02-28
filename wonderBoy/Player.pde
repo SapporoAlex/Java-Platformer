@@ -1,14 +1,20 @@
 public class Player extends AnimatedSprite{
   int health;
+  int attackStrength;
+  boolean attacking;
   boolean onPlatform, inPlace;
   PImage[] standLeft;
   PImage[] standRight;
   PImage[] jumpLeft;
   PImage[] jumpRight;
+  PImage[] attackLeft;
+  PImage[] attackRight;
   public Player(PImage img, float scale){
     super(img, scale);
     health = 100;
+    attackStrength = 10;
     direction = RIGHT_FACING;
+    attacking = false;
     onPlatform = true;
     inPlace = true;
     standLeft = new PImage[1];
@@ -25,6 +31,15 @@ public class Player extends AnimatedSprite{
     moveRight = new PImage[2];
     moveRight[0] = loadImage("../assets/player_move_right1.png");
     moveRight[1] = loadImage("../assets/player_move_right2.png");
+    attackLeft = new PImage[3];
+    attackLeft[0] = loadImage("../assets/player_fight_left1.png");
+    attackLeft[1] = loadImage("../assets/player_fight_left2.png");
+    attackLeft[2] = loadImage("../assets/player_fight_left3.png");
+    attackRight = new PImage[3];
+    attackRight[0] = loadImage("../assets/player_fight_right1.png");
+    attackRight[1] = loadImage("../assets/player_fight_right2.png");
+    attackRight[2] = loadImage("../assets/player_fight_right3.png");
+
     currentImages = standRight;
   }
   
@@ -46,7 +61,7 @@ public class Player extends AnimatedSprite{
   
   @Override
   public void selectCurrentImages(){
-  if (direction == RIGHT_FACING){
+  if (direction == RIGHT_FACING && !attacking){
     if (inPlace){
       currentImages = standRight;
     }
@@ -57,7 +72,7 @@ public class Player extends AnimatedSprite{
       currentImages = moveRight;
     }
    }
-   else if (direction == LEFT_FACING){
+   else if (direction == LEFT_FACING && !attacking){
     if (inPlace){
       currentImages = standLeft;
     }
@@ -67,6 +82,12 @@ public class Player extends AnimatedSprite{
     else {
       currentImages = moveLeft;
       }
+   }
+   else if (direction == RIGHT_FACING && attacking) {
+      currentImages = attackRight;
     }
+   else if (direction == LEFT_FACING && attacking) {
+      currentImages = attackLeft;
+   }
   }
 }
