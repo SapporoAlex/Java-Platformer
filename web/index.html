@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Monster Land</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#00c8ff">
+
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="shortcut icon" href="icons/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Monster Land">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+
+    <div id="touch-controls" class="hidden">
+      <div class="touch-side touch-left">
+        <button id="btn-left" class="touch-btn" aria-label="Move left">◀</button>
+        <button id="btn-right" class="touch-btn" aria-label="Move right">▶</button>
+      </div>
+      <div class="touch-side touch-right">
+        <button id="btn-up" class="touch-btn touch-btn-up hidden" aria-label="Enter door">▲</button>
+        <div class="touch-action-row">
+          <button id="btn-attack" class="touch-btn touch-btn-action" aria-label="Attack">ATK</button>
+          <button id="btn-jump" class="touch-btn touch-btn-action" aria-label="Jump">JUMP</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="start-screen" class="screen">
+      <div class="panel">
+        <h1>Monster Land</h1>
+        <p class="subtitle">A tiny platformer</p>
+        <button id="start-button" class="btn">Start Game</button>
+        <div class="controls kbd-controls">
+          <div><span class="key">← →</span> move</div>
+          <div><span class="key">A</span> jump</div>
+          <div><span class="key">Space</span> attack</div>
+          <div><span class="key">↑</span> enter door</div>
+        </div>
+        <p class="controls touch-hint">Use the on-screen buttons to move, jump, and attack.</p>
+      </div>
+    </div>
+
+    <div id="levelintro-screen" class="screen hidden intro-screen">
+      <div class="intro-content">
+        <p class="intro-lives-lost hidden" id="intro-lives-lost">Life lost!</p>
+        <h1 id="intro-level-number">Level 1</h1>
+        <p class="intro-name" id="intro-level-name"></p>
+        <div class="intro-health-bar"><div class="intro-health-fill" id="intro-health-fill"></div></div>
+        <p class="intro-lives" id="intro-lives-count">Lives: 3</p>
+      </div>
+    </div>
+
+    <div id="gameover-screen" class="screen hidden">
+      <div class="panel">
+        <h1>Game Over</h1>
+        <p class="subtitle" id="gameover-reason">You didn't make it.</p>
+        <button id="restart-game-button" class="btn">Restart Game</button>
+        <button id="gameover-menu-button" class="btn secondary">Main Menu</button>
+      </div>
+    </div>
+
+    <div id="levelcomplete-screen" class="screen hidden">
+      <div class="panel">
+        <h1>Level Complete!</h1>
+        <p class="subtitle" id="levelcomplete-message"></p>
+        <button id="continue-button" class="btn">Next Level</button>
+        <button id="complete-menu-button" class="btn secondary">Main Menu</button>
+      </div>
+    </div>
+
+    <div id="shop-screen" class="screen hidden">
+      <div class="panel shop-panel" id="shop-panel">
+        <h1 id="shop-title">Shop</h1>
+        <p class="subtitle">Gold: <span id="shop-gold">0</span></p>
+        <div class="shop-items" id="shop-items"></div>
+        <button id="shop-exit-button" class="btn secondary">Leave Shop</button>
+      </div>
+    </div>
+
+    <div id="gamecomplete-screen" class="screen hidden">
+      <div class="panel">
+        <h1>You Win!</h1>
+        <p class="subtitle">You defeated the boss and escaped!</p>
+        <div class="stats-row">
+          <div class="stat"><span class="stat-value" id="final-score">0</span><span class="stat-label">Score</span></div>
+          <div class="stat"><span class="stat-value" id="final-gold">0</span><span class="stat-label">Gold Collected</span></div>
+        </div>
+        <button id="gamecomplete-menu-button" class="btn">Back to Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rotate-prompt">
+    <p>Rotate your device to landscape to play</p>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

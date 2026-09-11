@@ -1,0 +1,391 @@
+:root {
+  color-scheme: dark;
+  --panel-bg: rgba(10, 12, 20, 0.72);
+  --accent: #ffce54;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #05070c;
+  font-family: 'Segoe UI', Tahoma, Verdana, sans-serif;
+  color: #f2f2f2;
+  padding: 16px;
+  overscroll-behavior: none;
+}
+
+/* On touch devices the stage is sized by JS (fitStage() in main.js) to fill
+   the viewport in landscape, since a CSS aspect-ratio box only adapts to the
+   constraining width - on a short landscape phone screen height is what's
+   actually tight. The width/aspect-ratio here are just the desktop fallback,
+   overridden by inline style once JS runs. */
+#stage {
+  position: relative;
+  width: 800px;
+  max-width: 100%;
+  aspect-ratio: 800 / 600;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+body.is-touch {
+  padding: 0;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #00c8ff;
+  image-rendering: pixelated;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.screen.hidden { display: none; }
+
+/* Preview.jpg is a screenshot of the game itself, used as a placeholder
+   full-size backdrop until real title art exists. */
+#start-screen {
+  background-image: linear-gradient(rgba(0, 10, 20, 0.45), rgba(0, 10, 20, 0.55)), url('../Preview.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+#gameover-screen,
+#levelcomplete-screen,
+#shop-screen {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* Reuses the same Preview.jpg placeholder as the start screen for its
+   full-size backdrop - see the note above #start-screen. */
+#gamecomplete-screen {
+  background-image: linear-gradient(rgba(10, 5, 20, 0.55), rgba(10, 5, 20, 0.65)), url('../Preview.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.stats-row {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  margin: 20px 0 26px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 12px 18px;
+}
+
+.stat-value {
+  font-size: 1.8em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 0.8em;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 32px 40px;
+  backdrop-filter: blur(3px);
+  max-width: 90%;
+}
+
+.panel h1 {
+  margin: 0 0 4px;
+  font-size: 2.4em;
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.subtitle {
+  margin: 0 0 20px;
+  opacity: 0.85;
+}
+
+.btn {
+  font-size: 1.05em;
+  padding: 10px 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #241a00;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 4px;
+  transition: transform 0.08s ease;
+}
+
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.btn.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f2f2f2;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.controls {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 18px;
+  font-size: 0.9em;
+  opacity: 0.9;
+  text-align: left;
+}
+
+/* Shop theming: game.js/main.js set --shop-from/--shop-to/--shop-accent per
+   shop (see shops-data.js) so each shop type can look distinct. */
+#shop-panel {
+  --shop-from: #2b1d10;
+  --shop-to: #6b4a2a;
+  --shop-accent: #ffce54;
+  background: linear-gradient(160deg, var(--shop-from), var(--shop-to));
+  min-width: 380px;
+}
+
+#shop-panel h1 { color: var(--shop-accent); }
+
+.shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.shop-item-info .name {
+  font-weight: 700;
+  color: var(--shop-accent);
+}
+
+.shop-item-info .desc {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.shop-item .buy-btn {
+  font-size: 0.95em;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: var(--shop-accent);
+  color: #241a00;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.shop-item .buy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Touch controls: only shown on touch devices (main.js toggles body.is-touch),
+   floating over the canvas on the left (movement) and right (actions) sides. */
+#touch-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 18px;
+  pointer-events: none;
+}
+
+#touch-controls.hidden { display: none; }
+
+.touch-side {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.touch-action-row {
+  display: flex;
+  gap: 14px;
+}
+
+.touch-btn {
+  pointer-events: auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(20, 20, 28, 0.45);
+  color: #fff;
+  font-size: 1.5em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: none;
+}
+
+.touch-btn:active,
+.touch-btn.pressed {
+  background: rgba(255, 206, 84, 0.55);
+  border-color: var(--accent);
+}
+
+.touch-btn-action {
+  font-size: 0.85em;
+  width: 72px;
+  height: 72px;
+}
+
+.touch-btn-up {
+  position: absolute;
+  right: 8px;
+  bottom: 100px;
+  font-size: 1.3em;
+}
+
+.touch-btn-up.hidden { display: none; }
+
+#rotate-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #05070c;
+  color: #f2f2f2;
+  font-size: 1.2em;
+  padding: 24px;
+}
+
+/* Only nag for landscape on touch devices - a desktop window just happens to
+   be tall/narrow isn't the same situation. */
+.touch-hint { display: none; }
+body.is-touch .touch-hint { display: block; }
+body.is-touch .kbd-controls { display: none; }
+
+@media (orientation: portrait) {
+  body.is-touch #stage,
+  body.is-touch #touch-controls {
+    visibility: hidden;
+  }
+  body.is-touch #rotate-prompt {
+    display: flex;
+  }
+}
+
+/* The black "Level N - Name" screen shown before a level starts (or after a
+   life is lost). Pure black background per spec - unlike the other overlay
+   screens, this doesn't show the frozen game behind it (game.js skips
+   rendering during 'levelintro'). */
+#levelintro-screen {
+  background: #000;
+}
+
+.intro-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.intro-lives-lost {
+  color: #ff6b6b;
+  font-weight: 700;
+  font-size: 1.1em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+}
+
+.intro-lives-lost.hidden { display: none; }
+
+#intro-level-number {
+  margin: 0;
+  font-size: 2.6em;
+  color: var(--accent);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.intro-name {
+  margin: 0 0 22px;
+  font-size: 1.3em;
+  opacity: 0.9;
+}
+
+.intro-health-bar {
+  width: 260px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+
+.intro-health-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff5050, #ff8a3d);
+}
+
+.intro-lives {
+  margin: 14px 0 0;
+  opacity: 0.85;
+}
+
+.key {
+  display: inline-block;
+  min-width: 2.4em;
+  text-align: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-family: monospace;
+  margin-right: 6px;
+}
