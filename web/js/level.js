@@ -52,7 +52,12 @@ export class Level {
       const boundaryRight = boundaryLeft + e.rangeTiles * SPRITE_SIZE;
       const enemy = new Enemy(images, boundaryLeft, boundaryRight);
       enemy.centerX = SPRITE_SIZE / 2 + e.col * SPRITE_SIZE;
-      enemy.centerY = SPRITE_SIZE / 2 + e.row * SPRITE_SIZE;
+      // Ground-anchored (feet on top of the row directly below `e.row` - the
+      // level-design convention every enemy placement already follows) so
+      // the enemy's own sprite height - now matching the player's 200x250,
+      // not just a scaled-up spider - stands correctly instead of sinking
+      // into (or floating above) the ground.
+      enemy.setBottom((e.row + 1) * SPRITE_SIZE);
       this.enemies.push(enemy);
     }
 
@@ -85,6 +90,10 @@ export class Level {
         health: data.boss.health,
         attackStrength: data.boss.attackStrength,
         assetPrefix: data.boss.assetPrefix,
+        fireballIntervalTicks: data.boss.fireballIntervalTicks,
+        fireballIntervalMinTicks: data.boss.fireballIntervalMinTicks,
+        fireballIntervalMaxTicks: data.boss.fireballIntervalMaxTicks,
+        fireballOrigins: data.boss.fireballOrigins,
       });
       boss.centerX = boundaryLeft + boss.w / 2;
       boss.setBottom(GROUND_LEVEL - SPRITE_SIZE); // stand on the walkway (row 10's top)

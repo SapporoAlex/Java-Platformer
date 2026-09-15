@@ -29,7 +29,7 @@ body {
   position: relative;
   width: 800px;
   max-width: 100%;
-  aspect-ratio: 800 / 600;
+  aspect-ratio: 4 / 3; /* matches CANVAS_WIDTH/CANVAS_HEIGHT in constants.js */
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   border-radius: 6px;
   overflow: hidden;
@@ -154,6 +154,30 @@ body.is-touch {
   color: #f2f2f2;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
+
+/* Always-available pause toggle, shown only while actually playing (main.js
+   toggles it alongside the touch controls) - sits above the canvas and the
+   touch controls (z-index 5) in the top-right corner, out of the way of the
+   HUD's own text/bars. */
+#pause-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(20, 20, 28, 0.55);
+  color: #fff;
+  font-size: 1.1em;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#pause-button:hover { background: rgba(20, 20, 28, 0.75); }
+#pause-button.hidden { display: none; }
 
 .controls {
   margin-top: 22px;

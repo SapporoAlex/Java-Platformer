@@ -14,6 +14,8 @@
 //   'oneup'            -> +1 life
 //   'floatBoots'       -> multiply gravity by `amount` (e.g. 0.5 = half), permanently -
 //                         floatier jumps and slower falls
+//   'attackSpeed'      -> multiply the whole attack swing timeline by `amount`
+//                         (e.g. 0.5 = half the cooldown), permanently
 //
 // An item with `oneTime: true` can only ever be bought once per playthrough
 // (tracked in Game#purchasedOneTimeItems) - the shop UI shows "Owned" once
@@ -51,6 +53,10 @@ export const SHOPS = {
     items: [
       { id: 'whetstone', kind: 'weapon', label: 'Whetstone', description: '+8 attack damage', cost: 18, amount: 8 },
       { id: 'ration', kind: 'potion', label: 'Field Ration', description: 'Restore 40 HP', cost: 4, amount: 40 },
+      {
+        id: 'swiftstrike', kind: 'attackSpeed', label: 'Swift Strike Training',
+        description: 'Halves attack cooldown', cost: 25, amount: 0.5, oneTime: true,
+      },
     ],
   },
   mystic: {

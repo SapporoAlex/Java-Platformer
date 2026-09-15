@@ -1,7 +1,11 @@
-// Maps every image the game needs to its file in ../assets (nothing new added,
-// same PNGs the Processing sketch used) plus the repo's own Preview.jpg for the
-// start screen backdrop.
+// Maps every image the game needs to its file in ../assets - mostly the same
+// PNGs the Processing sketch used, plus the repo's own Preview.jpg for the
+// start screen backdrop, the player's idle animation, and its "wounded" set.
 export const ASSET_PATHS = {
+  // Parallax background (mountains/forest) - see PARALLAX_FACTOR in
+  // constants.js and Game#renderParallaxBackground in game.js.
+  bgParallax: '../assets/bg_parallax.png',
+
   tile1: '../assets/1.png',
   tile2: '../assets/2.png',
   tile3: '../assets/3.png',
@@ -13,8 +17,6 @@ export const ASSET_PATHS = {
   tile9: '../assets/9.png',
   tile10: '../assets/10.png',
 
-  playerStandLeft: '../assets/player_stand_left.png',
-  playerStandRight: '../assets/player_stand_right.png',
   playerJumpLeft: '../assets/player_jump_left.png',
   playerJumpRight: '../assets/player_jump_right.png',
   playerMoveLeft1: '../assets/player_move_left1.png',
@@ -27,6 +29,21 @@ export const ASSET_PATHS = {
   playerFightRight1: '../assets/player_fight_right1.png',
   playerFightRight2: '../assets/player_fight_right2.png',
   playerFightRight3: '../assets/player_fight_right3.png',
+
+  // "Wounded" look for every player animation, swapped in once health drops
+  // to half or below - see WOUNDED_HEALTH_RATIO in constants.js.
+  playerJumpWoundedLeft: '../assets/player_jump_wounded_left.png',
+  playerJumpWoundedRight: '../assets/player_jump_wounded_right.png',
+  playerMoveWoundedLeft1: '../assets/player_move_wounded_left1.png',
+  playerMoveWoundedLeft2: '../assets/player_move_wounded_left2.png',
+  playerMoveWoundedRight1: '../assets/player_move_wounded_right1.png',
+  playerMoveWoundedRight2: '../assets/player_move_wounded_right2.png',
+  playerFightWoundedLeft1: '../assets/player_fight_wounded_left1.png',
+  playerFightWoundedLeft2: '../assets/player_fight_wounded_left2.png',
+  playerFightWoundedLeft3: '../assets/player_fight_wounded_left3.png',
+  playerFightWoundedRight1: '../assets/player_fight_wounded_right1.png',
+  playerFightWoundedRight2: '../assets/player_fight_wounded_right2.png',
+  playerFightWoundedRight3: '../assets/player_fight_wounded_right3.png',
 
   spiderWalkLeft1: '../assets/spider_walk_left1.png',
   spiderWalkLeft2: '../assets/spider_walk_left2.png',
@@ -67,6 +84,16 @@ export const ASSET_PATHS = {
   // hand-listed, since they all share the same 14-frame shape.
 };
 
+// Player idle animation (10 frames, see IDLE_FRAME_COUNT in constants.js) -
+// built the same way as the boss frames below since it's another long, evenly
+// numbered run - plus its "wounded" counterpart, swapped in at half health.
+for (const dir of ['Left', 'Right']) {
+  for (let i = 1; i <= 10; i++) {
+    ASSET_PATHS[`playerIdle${dir}${i}`] = `../assets/player_idle_${dir.toLowerCase()}${i}.png`;
+    ASSET_PATHS[`playerIdleWounded${dir}${i}`] = `../assets/player_idle_wounded_${dir.toLowerCase()}${i}.png`;
+  }
+}
+
 for (const prefix of ['boss', 'boss2', 'boss3']) {
   const camel = (suffix) => prefix + suffix;
   const file = (suffix) => `../assets/${prefix}_${suffix}.png`;
@@ -86,6 +113,24 @@ for (const prefix of ['boss', 'boss2', 'boss3']) {
     [camel('AttackRight2')]: file('attack_right2'),
     [camel('AttackRight3')]: file('attack_right3'),
   });
+  // Death animation (6 frames, see BOSS_DEATH_FRAME_COUNT in constants.js) -
+  // plays once when the boss's health hits 0, then holds on the last frame.
+  for (let i = 1; i <= 6; i++) {
+    ASSET_PATHS[camel(`DeathLeft${i}`)] = file(`death_left${i}`);
+    ASSET_PATHS[camel(`DeathRight${i}`)] = file(`death_right${i}`);
+  }
+}
+
+// Player victory animation: 3 randomly-chosen variants (VICTORY_VARIANT_COUNT
+// in constants.js), 10 frames each (VICTORY_FRAME_COUNT), played once the
+// boss's own death animation finishes - see Player.startVictory() and the
+// 'bossdefeated' game state in game.js.
+for (let variant = 1; variant <= 3; variant++) {
+  for (const dir of ['Left', 'Right']) {
+    for (let i = 1; i <= 10; i++) {
+      ASSET_PATHS[`playerVictory${variant}${dir}${i}`] = `../assets/player_victory${variant}_${dir.toLowerCase()}${i}.png`;
+    }
+  }
 }
 
 export function loadImages(onProgress) {

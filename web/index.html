@@ -48,7 +48,9 @@
   </head>
   <body>
     <div id="stage">
-      <canvas id="game-canvas" width="800" height="600"></canvas>
+      <canvas id="game-canvas" width="2400" height="1800"></canvas>
+
+      <button id="pause-button" class="hidden" aria-label="Pause">❚❚</button>
 
       <div id="touch-controls" class="hidden">
         <div class="touch-side touch-left">
@@ -96,6 +98,7 @@
             <div><span class="key">A</span> jump</div>
             <div><span class="key">Space</span> attack</div>
             <div><span class="key">↑</span> enter door</div>
+            <div><span class="key">Esc</span> pause</div>
           </div>
           <p class="controls touch-hint">
             Use the on-screen buttons to move, jump, and attack.
@@ -114,6 +117,16 @@
             <div class="intro-health-fill" id="intro-health-fill"></div>
           </div>
           <p class="intro-lives" id="intro-lives-count">Lives: 3</p>
+        </div>
+      </div>
+
+      <div id="paused-screen" class="screen hidden">
+        <div class="panel">
+          <h1>Paused</h1>
+          <button id="resume-button" class="btn">Resume</button>
+          <button id="paused-menu-button" class="btn secondary">
+            Main Menu
+          </button>
         </div>
       </div>
 

@@ -9,6 +9,7 @@ import { LEVEL_INTRO_SECONDS } from './constants.js';
 const stage = document.getElementById('stage');
 const canvas = document.getElementById('game-canvas');
 const touchControls = document.getElementById('touch-controls');
+const pauseButton = document.getElementById('pause-button');
 const btnLeft = document.getElementById('btn-left');
 const btnRight = document.getElementById('btn-right');
 const btnJump = document.getElementById('btn-jump');
@@ -22,6 +23,7 @@ const screens = {
   levelcomplete: document.getElementById('levelcomplete-screen'),
   shop: document.getElementById('shop-screen'),
   gamecomplete: document.getElementById('gamecomplete-screen'),
+  paused: document.getElementById('paused-screen'),
 };
 
 const startButton = document.getElementById('start-button');
@@ -47,6 +49,9 @@ const shopExitButton = document.getElementById('shop-exit-button');
 const gamecompleteMenuButton = document.getElementById('gamecomplete-menu-button');
 const finalScoreEl = document.getElementById('final-score');
 const finalGoldEl = document.getElementById('final-gold');
+
+const resumeButton = document.getElementById('resume-button');
+const pausedMenuButton = document.getElementById('paused-menu-button');
 
 function showScreen(name) {
   for (const key of Object.keys(screens)) {
@@ -109,12 +114,14 @@ function renderLevelIntroScreen(game) {
   });
 }
 
-// Fills the viewport with the 800x600 stage at the largest size that keeps
-// its aspect ratio - a plain CSS aspect-ratio box only adapts to whichever
+// Fills the viewport with the stage (2400x1800 internally, see CANVAS_WIDTH/
+// CANVAS_HEIGHT in constants.js - same 4:3 ratio as the original 800x600, just
+// a higher internal render resolution) at the largest size that keeps its
+// aspect ratio - a plain CSS aspect-ratio box only adapts to whichever
 // dimension is unconstrained, but on a short landscape phone screen it's the
 // *height* that's tight, so this has to be computed in JS.
 function fitStage() {
-  const targetRatio = 800 / 600;
+  const targetRatio = 4 / 3;
   const availW = window.innerWidth;
   const availH = window.innerHeight;
   let w = availW;
@@ -205,6 +212,18 @@ async function boot() {
   gamecompleteMenuButton.addEventListener('click', () => {
     game.state = 'start';
   });
+  pauseButton.addEventListener('click', () => {
+    game.pause();
+  });
+  resumeButton.addEventListener('click', () => {
+    game.resume();
+  });
+  pausedMenuButton.addEventListener('click', () => {
+    game.state = 'start';
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Escape' && !e.repeat) game.togglePause();
+  });
 
   function syncScreenToState() {
     if (game.state === lastState) return;
@@ -244,6 +263,7 @@ async function boot() {
     game.update(input);
     game.render();
     syncScreenToState();
+    pauseButton.classList.toggle('hidden', game.state !== 'playing');
     if (isTouchDevice) {
       touchControls.classList.toggle('hidden', game.state !== 'playing');
       btnUp.classList.toggle('hidden', !game.activeDoor);

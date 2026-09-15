@@ -1,8 +1,10 @@
-// All levels are 12 tile rows tall (12 * 50 = 600 = canvas height), with rows
-// 10-11 always the solid walkway + foundation (matching the original
+// All levels are 12 tile rows tall (12 * SPRITE_SIZE = canvas height), with
+// rows 10-11 always the solid walkway + foundation (matching the original
 // assets/map.csv). A building's door always sits at row 9 - one tile above
-// the walkway, two tiles tall - because Door draws a 50x100 overlay spanning
-// rows 9-10, matching wherever the original level's exit building placed it.
+// the walkway, two tiles tall - because Door draws a SPRITE_SIZE x
+// SPRITE_SIZE*2 overlay spanning rows 9-10, matching wherever the original
+// level's exit building placed it. (All of this is in tile/row/col units, so
+// none of it needed to change when SPRITE_SIZE itself was scaled up.)
 //
 // Tile codes match the original createPlatforms(): 1/4/5/9/10 solid,
 // 2/3/6/7/8 decorative (walk-through) background - buildings are backdrops
@@ -41,7 +43,7 @@ function buildBuilding(grid, colStart, colEnd, { roofTile, wallTile, groundTile 
 // GROUND_ROW - used to build rolling dune terrain (Level 8) out of nothing
 // but sand tiles: no walls/roofs, just the ground itself rising and falling.
 // Consecutive plateaus differ by at most 2 rows so every step up is a single
-// easy hop (max jump height is about 3 tiles).
+// easy hop (max jump height is about 4 tiles - see JUMP_SPEED in constants.js).
 function buildDune(grid, colStart, colEnd, topRow) {
   fillRect(grid, colStart, colEnd, topRow, topRow, 9);
   fillRect(grid, colStart, colEnd, topRow + 1, FOUNDATION_ROW, 10);
@@ -63,12 +65,12 @@ const LEVEL_1_TILES = [
   [6,6,6,0,0,0,0,0,0,0,0,0,0,6,6,6,6,6,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
   [6,6,6,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
   [2,2,2,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
-  [2,2,4,0,0,0,0,0,5,0,0,0,0,4,4,4,2,2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
-  [2,2,2,0,0,0,0,0,5,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
-  [2,2,2,0,0,0,0,0,5,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
-  [4,4,2,0,0,0,8,8,8,8,0,0,0,2,2,4,4,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
-  [2,2,2,0,0,0,3,3,3,3,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 6,6,6,0],
-  [2,2,2,0,0,0,3,3,3,3,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,9,9,9, 2,2,2,0],
+  [2,2,4,0,0,0,0,0,0,0,0,0,0,4,4,4,2,2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
+  [2,2,2,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
+  [2,2,2,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
+  [4,4,2,0,0,0,8,8,5,8,0,0,0,2,2,4,4,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0],
+  [2,2,2,0,0,0,3,3,5,3,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 6,6,6,0],
+  [2,2,2,0,0,0,3,3,5,3,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,9,9,9, 2,2,2,0],
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,9,9,9,0,0,0,9,9,9,9,10,10,10, 9,9,9,9],
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,10,10,10,9,9,9,10,10,10,10,10,10,10, 10,10,10,10],
 ];
@@ -96,8 +98,8 @@ buildBuilding(level2, 14, 17, { roofTile: 7, wallTile: 3, groundTile: 1 });
 // Building B: taller decorative facade, two more brick platforms.
 fillRect(level2, 21, 28, 1, 1, 8);
 fillRect(level2, 21, 28, 2, 9, 3);
-fillRect(level2, 22, 24, 4, 4, 4);
-fillRect(level2, 25, 27, 6, 6, 5);
+fillRect(level2, 22, 24, 5, 5, 4);
+fillRect(level2, 25, 27, 7, 7, 5);
 
 // Exit building - door overlaid at col 42, row 9.
 buildBuilding(level2, 40, 44, { roofTile: 6, wallTile: 2, groundTile: 9 });
@@ -114,12 +116,12 @@ fillRect(level3, 43, LEVEL_3_COLS - 1, FOUNDATION_ROW, FOUNDATION_ROW, 10);
 
 fillRect(level3, 2, 7, 1, 1, 7);
 fillRect(level3, 2, 7, 2, 9, 2);
-fillRect(level3, 3, 5, 4, 4, 4);
+fillRect(level3, 3, 5, 7, 7, 4);
 
 fillRect(level3, 14, 20, 1, 1, 6);
 fillRect(level3, 14, 20, 2, 9, 3);
-fillRect(level3, 15, 17, 4, 4, 5);
-fillRect(level3, 17, 19, 6, 6, 4);
+fillRect(level3, 15, 17, 5, 5, 5);
+fillRect(level3, 17, 19, 7, 7, 4);
 
 fillRect(level3, 27, 33, 1, 1, 8);
 fillRect(level3, 27, 33, 2, 9, 2);
@@ -143,11 +145,11 @@ fillRect(level4, 40, LEVEL_4_COLS - 1, FOUNDATION_ROW, FOUNDATION_ROW, 10);
 
 fillRect(level4, 2, 8, 1, 1, 6);
 fillRect(level4, 2, 8, 2, 9, 2);
-fillRect(level4, 3, 5, 5, 5, 4);
+fillRect(level4, 3, 5, 7, 7, 4);
 
 fillRect(level4, 16, 23, 1, 1, 7);
 fillRect(level4, 16, 23, 2, 9, 2);
-fillRect(level4, 17, 19, 4, 4, 5);
+fillRect(level4, 17, 19, 7, 7, 5);
 
 // Open runway leading up to the boss's territory, then the exit building -
 // door overlaid at col 44, row 9. The boss's patrol range (below) spans
@@ -173,8 +175,8 @@ buildBuilding(level5, 15, 18, { roofTile: 8, wallTile: 3, groundTile: 1 });
 
 fillRect(level5, 23, 30, 1, 1, 7);
 fillRect(level5, 23, 30, 2, 9, 2);
-fillRect(level5, 24, 26, 4, 4, 4);
-fillRect(level5, 27, 29, 6, 6, 5);
+fillRect(level5, 24, 26, 5, 5, 4);
+fillRect(level5, 27, 29, 7, 7, 5);
 
 // Exit building - door overlaid at col 45, row 9.
 buildBuilding(level5, 43, 47, { roofTile: 6, wallTile: 2, groundTile: 9 });
@@ -191,26 +193,26 @@ fillRect(level6, 42, LEVEL_6_COLS - 1, FOUNDATION_ROW, FOUNDATION_ROW, 10);
 
 fillRect(level6, 2, 8, 1, 1, 6);
 fillRect(level6, 2, 8, 2, 9, 2);
-fillRect(level6, 3, 5, 5, 5, 4);
+fillRect(level6, 3, 5, 7, 7, 4);
 
 fillRect(level6, 10, 15, 1, 1, 7);
 fillRect(level6, 10, 15, 2, 9, 3);
-fillRect(level6, 11, 13, 6, 6, 5);
+fillRect(level6, 11, 13, 7, 7, 5);
 
 // Blacksmith shop - door overlaid at col 19, row 9.
 buildBuilding(level6, 17, 20, { roofTile: 8, wallTile: 2, groundTile: 1 });
 
 fillRect(level6, 22, 27, 1, 1, 6);
 fillRect(level6, 22, 27, 2, 9, 3);
-fillRect(level6, 23, 25, 4, 4, 4);
+fillRect(level6, 23, 25, 7, 7, 4);
 
 fillRect(level6, 29, 34, 1, 1, 7);
 fillRect(level6, 29, 34, 2, 9, 2);
-fillRect(level6, 30, 32, 6, 6, 5);
+fillRect(level6, 30, 32, 7, 7, 5);
 
 fillRect(level6, 36, 41, 1, 1, 8);
 fillRect(level6, 36, 41, 2, 9, 3);
-fillRect(level6, 37, 39, 5, 5, 4);
+fillRect(level6, 37, 39, 7, 7, 4);
 
 // Exit building - door overlaid at col 45, row 9.
 buildBuilding(level6, 43, 47, { roofTile: 6, wallTile: 2, groundTile: 9 });
@@ -227,7 +229,7 @@ fillRect(level7, 41, LEVEL_7_COLS - 1, FOUNDATION_ROW, FOUNDATION_ROW, 10);
 
 fillRect(level7, 2, 8, 1, 1, 7);
 fillRect(level7, 2, 8, 2, 9, 2);
-fillRect(level7, 3, 5, 5, 5, 4);
+fillRect(level7, 3, 5, 7, 7, 4);
 
 fillRect(level7, 14, 21, 1, 1, 8);
 fillRect(level7, 14, 21, 2, 9, 3);
@@ -268,23 +270,24 @@ fillRect(level9, 0, LEVEL_9_COLS - 1, FOUNDATION_ROW, FOUNDATION_ROW, 10);
 
 fillRect(level9, 3, 9, 1, 1, 6);
 fillRect(level9, 3, 9, 2, 9, 2);
-fillRect(level9, 4, 6, 5, 5, 4);
+fillRect(level9, 4, 6, 7, 7, 4);
 
 // Mystic's Hut - door overlaid at col 16, row 9.
 buildBuilding(level9, 14, 17, { roofTile: 8, wallTile: 3, groundTile: 9 });
 
 fillRect(level9, 22, 28, 1, 1, 7);
 fillRect(level9, 22, 28, 2, 9, 2);
-fillRect(level9, 23, 25, 4, 4, 5);
+fillRect(level9, 23, 25, 7, 7, 5);
 
 // Exit building - door overlaid at col 41, row 9.
 buildBuilding(level9, 39, LEVEL_9_COLS - 1, { roofTile: 6, wallTile: 2, groundTile: 9 });
 
 // ---------------------------------------------------------------------------
 // Level 10 - "Sky Bridges": disconnected floating platforms over open sky.
-// Every gap is exactly 2 tiles wide (100px) - comfortably inside a running
-// jump's ~140px range - but falling anywhere else means falling to the
-// death-plane, so this is the one level where that matters.
+// Every gap is exactly 2 tiles wide - comfortably inside a running jump's
+// range (both scale together with SPRITE_SIZE, see constants.js) - but
+// falling anywhere else means falling to the death-plane, so this is the one
+// level where that matters.
 // ---------------------------------------------------------------------------
 const LEVEL_10_COLS = 50;
 const level10 = emptyGrid(LEVEL_10_COLS);
@@ -312,7 +315,7 @@ fillRect(level11, 46, LEVEL_11_COLS - 1, FOUNDATION_ROW, FOUNDATION_ROW, 10);
 
 fillRect(level11, 2, 8, 1, 1, 6);
 fillRect(level11, 2, 8, 2, 9, 2);
-fillRect(level11, 3, 5, 5, 5, 4);
+fillRect(level11, 3, 5, 7, 7, 4);
 
 fillRect(level11, 11, 17, 1, 1, 7);
 fillRect(level11, 11, 17, 2, 9, 3);
@@ -321,7 +324,7 @@ fillRect(level11, 15, 17, 7, 7, 4);
 
 fillRect(level11, 20, 26, 1, 1, 8);
 fillRect(level11, 20, 26, 2, 9, 2);
-fillRect(level11, 21, 23, 5, 5, 5);
+fillRect(level11, 21, 23, 7, 7, 5);
 
 fillRect(level11, 29, 35, 1, 1, 6);
 fillRect(level11, 29, 35, 2, 9, 3);
@@ -339,13 +342,13 @@ export const LEVELS = [
     tiles: LEVEL_1_TILES,
     coins: [
       { col: 2, row: 0 },
-      { col: 8, row: 1 },
-      { col: 8, row: 2 },
-      { col: 21, row: 2 },
-      { col: 22, row: 2 },
-      { col: 8, row: 3 },
       { col: 8, row: 4 },
-      { col: 25, row: 4 },
+      { col: 8, row: 5 },
+      { col: 21, row: 2 },
+      { col: 22, row: 7 },
+      { col: 8, row: 6 },
+      { col: 8, row: 7 },
+      { col: 25, row: 7 },
       { col: 27, row: 5 },
       { col: 10, row: 9 },
     ],
@@ -367,12 +370,12 @@ export const LEVELS = [
       { col: 4, row: 0 },
       { col: 6, row: 3 },
       { col: 12, row: 9 },
-      { col: 16, row: 4 },
-      { col: 23, row: 1 },
-      { col: 26, row: 4 },
-      { col: 33, row: 1 },
-      { col: 38, row: 3 },
-      { col: 42, row: 4 },
+      { col: 16, row: 6 },
+      { col: 23, row: 2 },
+      { col: 26, row: 5 },
+      { col: 33, row: 7 },
+      { col: 38, row: 7 },
+      { col: 42, row: 7 },
     ],
     enemies: [
       { col: 10, row: 9, rangeTiles: 4 },
@@ -380,7 +383,7 @@ export const LEVELS = [
       { col: 35, row: 9, rangeTiles: 4 },
     ],
     swoopEnemies: [
-      { col: 30, row: 2, rangeTiles: 6 },
+      { col: 30, row: 6, rangeTiles: 6 },
     ],
     doors: [
       { col: 16, row: DOOR_ROW, kind: 'shop', shopId: 'general_store' },
@@ -393,16 +396,16 @@ export const LEVELS = [
     name: 'Brickstone Hollow',
     tiles: level3,
     coins: [
-      { col: 4, row: 0 },
+      { col: 4, row: 3 },
       { col: 9, row: 9 },
-      { col: 16, row: 1 },
-      { col: 18, row: 4 },
+      { col: 16, row: 2 },
+      { col: 18, row: 5 },
       { col: 24, row: 9 },
       { col: 29, row: 1 },
       { col: 31, row: 5 },
       { col: 37, row: 9 },
-      { col: 41, row: 2 },
-      { col: 47, row: 4 },
+      { col: 41, row: 7 },
+      { col: 47, row: 7 },
     ],
     enemies: [
       { col: 9, row: 9, rangeTiles: 4 },
@@ -411,7 +414,7 @@ export const LEVELS = [
       { col: 41, row: 9, rangeTiles: 4 },
     ],
     fireEnemies: [
-      { col: 16, row: 3 },
+      { col: 16, row: 4 },
     ],
     doors: [
       { col: 48, row: DOOR_ROW, kind: 'exit' },
@@ -423,13 +426,13 @@ export const LEVELS = [
     name: "Gatewarden's Hollow",
     tiles: level4,
     coins: [
-      { col: 4, row: 0 },
+      { col: 4, row: 2 },
       { col: 10, row: 9 },
-      { col: 18, row: 1 },
-      { col: 21, row: 4 },
+      { col: 18, row: 4 },
+      { col: 21, row: 7 },
       { col: 28, row: 9 },
-      { col: 37, row: 3 },
-      { col: 44, row: 4 },
+      { col: 37, row: 7 },
+      { col: 44, row: 7 },
     ],
     enemies: [
       { col: 10, row: 9, rangeTiles: 4 },
@@ -439,7 +442,11 @@ export const LEVELS = [
     doors: [
       { col: 44, row: DOOR_ROW, kind: 'exit' },
     ],
-    boss: { col: 34, rangeTiles: 11, health: 200, attackStrength: 15, assetPrefix: 'boss' },
+    // Fires a fireball from center-height every 10s (600 ticks at 60fps).
+    boss: {
+      col: 34, rangeTiles: 11, health: 200, attackStrength: 15, assetPrefix: 'boss',
+      fireballIntervalTicks: 600,
+    },
     playerStart: { x: 100 },
   },
   {
@@ -449,13 +456,13 @@ export const LEVELS = [
     coins: [
       { col: 4, row: 0 },
       { col: 10, row: 9 },
-      { col: 12, row: 3 },
-      { col: 17, row: 4 },
-      { col: 25, row: 1 },
-      { col: 28, row: 5 },
+      { col: 12, row: 7 },
+      { col: 17, row: 7 },
+      { col: 25, row: 2 },
+      { col: 28, row: 6 },
       { col: 34, row: 9 },
-      { col: 39, row: 2 },
-      { col: 45, row: 4 },
+      { col: 39, row: 7 },
+      { col: 45, row: 7 },
     ],
     enemies: [
       { col: 10, row: 9, rangeTiles: 4 },
@@ -464,7 +471,7 @@ export const LEVELS = [
       { col: 39, row: 9, rangeTiles: 4 },
     ],
     swoopEnemies: [
-      { col: 33, row: 2, rangeTiles: 8 },
+      { col: 33, row: 6, rangeTiles: 8 },
     ],
     doors: [
       { col: 17, row: DOOR_ROW, kind: 'shop', shopId: 'temple' },
@@ -477,15 +484,15 @@ export const LEVELS = [
     name: 'Market Row',
     tiles: level6,
     coins: [
-      { col: 4, row: 0 },
+      { col: 4, row: 2 },
       { col: 9, row: 9 },
-      { col: 12, row: 3 },
-      { col: 19, row: 4 },
-      { col: 24, row: 2 },
-      { col: 31, row: 2 },
+      { col: 12, row: 4 },
+      { col: 19, row: 7 },
+      { col: 24, row: 5 },
+      { col: 31, row: 3 },
       { col: 35, row: 9 },
-      { col: 38, row: 2 },
-      { col: 44, row: 4 },
+      { col: 38, row: 4 },
+      { col: 44, row: 7 },
     ],
     enemies: [
       { col: 9, row: 9, rangeTiles: 3 },
@@ -495,7 +502,7 @@ export const LEVELS = [
       { col: 42, row: 9, rangeTiles: 3 },
     ],
     fireEnemies: [
-      { col: 12, row: 0 },
+      { col: 12, row: 6 },
     ],
     doors: [
       { col: 19, row: DOOR_ROW, kind: 'shop', shopId: 'blacksmith' },
@@ -508,14 +515,14 @@ export const LEVELS = [
     name: 'Fortress Approach',
     tiles: level7,
     coins: [
-      { col: 4, row: 0 },
+      { col: 4, row: 2 },
       { col: 9, row: 9 },
       { col: 16, row: 2 },
       { col: 19, row: 5 },
       { col: 25, row: 9 },
       { col: 31, row: 9 },
-      { col: 38, row: 3 },
-      { col: 44, row: 4 },
+      { col: 38, row: 7 },
+      { col: 44, row: 7 },
     ],
     enemies: [
       { col: 9, row: 9, rangeTiles: 4 },
@@ -525,7 +532,11 @@ export const LEVELS = [
     doors: [
       { col: 44, row: DOOR_ROW, kind: 'exit' },
     ],
-    boss: { col: 34, rangeTiles: 11, health: 320, attackStrength: 20, assetPrefix: 'boss2' },
+    // Fires twice as often as the first boss - every 5s (300 ticks).
+    boss: {
+      col: 34, rangeTiles: 11, health: 320, attackStrength: 20, assetPrefix: 'boss2',
+      fireballIntervalTicks: 300,
+    },
     playerStart: { x: 100 },
   },
   {
@@ -547,7 +558,7 @@ export const LEVELS = [
       { col: 34, row: 6, rangeTiles: 3 },
     ],
     swoopEnemies: [
-      { col: 20, row: 3, rangeTiles: 7 },
+      { col: 20, row: 6, rangeTiles: 7 },
     ],
     doors: [
       { col: 41, row: DOOR_ROW, kind: 'exit' },
@@ -559,14 +570,14 @@ export const LEVELS = [
     name: 'Oasis Sanctuary',
     tiles: level9,
     coins: [
-      { col: 5, row: 0 },
+      { col: 5, row: 2 },
       { col: 9, row: 9 },
-      { col: 16, row: 4 },
-      { col: 24, row: 2 },
+      { col: 16, row: 7 },
+      { col: 24, row: 5 },
       { col: 28, row: 9 },
-      { col: 33, row: 3 },
-      { col: 38, row: 2 },
-      { col: 42, row: 4 },
+      { col: 33, row: 7 },
+      { col: 38, row: 7 },
+      { col: 42, row: 7 },
     ],
     enemies: [
       { col: 11, row: 9, rangeTiles: 4 },
@@ -575,7 +586,7 @@ export const LEVELS = [
       { col: 35, row: 9, rangeTiles: 4 },
     ],
     fireEnemies: [
-      { col: 24, row: 3 },
+      { col: 24, row: 6 },
     ],
     doors: [
       { col: 16, row: DOOR_ROW, kind: 'shop', shopId: 'mystic' },
@@ -594,7 +605,7 @@ export const LEVELS = [
       { col: 24, row: 7 },
       { col: 31, row: 7 },
       { col: 38, row: 7 },
-      { col: 47, row: 4 },
+      { col: 47, row: 7 },
     ],
     enemies: [
       // Kept away from each bridge's landing edges - a knockback that shoves
@@ -604,7 +615,7 @@ export const LEVELS = [
       { col: 31, row: 8, rangeTiles: 1 },
     ],
     swoopEnemies: [
-      { col: 15, row: 3, rangeTiles: 23 },
+      { col: 15, row: 6, rangeTiles: 23 },
     ],
     doors: [
       { col: 48, row: DOOR_ROW, kind: 'exit' },
@@ -616,15 +627,15 @@ export const LEVELS = [
     name: 'Monster Keep',
     tiles: level11,
     coins: [
-      { col: 4, row: 0 },
+      { col: 4, row: 2 },
       { col: 13, row: 2 },
       { col: 16, row: 5 },
-      { col: 22, row: 1 },
+      { col: 22, row: 3 },
       { col: 31, row: 2 },
       { col: 34, row: 5 },
       { col: 39, row: 9 },
-      { col: 44, row: 3 },
-      { col: 50, row: 4 },
+      { col: 44, row: 7 },
+      { col: 50, row: 7 },
     ],
     enemies: [
       { col: 9, row: 9, rangeTiles: 4 },
@@ -638,7 +649,12 @@ export const LEVELS = [
     doors: [
       { col: 49, row: DOOR_ROW, kind: 'exit' },
     ],
-    boss: { col: 40, rangeTiles: 12, health: 480, attackStrength: 28, assetPrefix: 'boss3' },
+    // Fires from a random point on its body (center or top) at a random
+    // interval every 5-10s (300-600 ticks), re-rolled after every shot.
+    boss: {
+      col: 40, rangeTiles: 12, health: 480, attackStrength: 28, assetPrefix: 'boss3',
+      fireballIntervalMinTicks: 300, fireballIntervalMaxTicks: 600, fireballOrigins: ['center', 'top'],
+    },
     playerStart: { x: 100 },
   },
 ];
