@@ -80,7 +80,8 @@ export const HITSTUN_MARGIN_TICKS = 3;
 // 5 frames at 6 ticks each = 30 ticks (0.5s at 60fps).
 export const DEATH_ANIM_FRAME_COUNT = 5;
 export const DEATH_ANIM_FRAME_TICKS = 6;
-export const DEATH_ANIM_TOTAL_TICKS = DEATH_ANIM_FRAME_COUNT * DEATH_ANIM_FRAME_TICKS;
+export const DEATH_ANIM_TOTAL_TICKS =
+  DEATH_ANIM_FRAME_COUNT * DEATH_ANIM_FRAME_TICKS;
 
 // Boss death: once its health hits 0 the boss plays this many dedicated death
 // frames (see the boss_death_* assets) instead of just vanishing - it stays
@@ -89,7 +90,8 @@ export const DEATH_ANIM_TOTAL_TICKS = DEATH_ANIM_FRAME_COUNT * DEATH_ANIM_FRAME_
 // (below) freeze everything.
 export const BOSS_DEATH_FRAME_COUNT = 6;
 export const BOSS_DEATH_FRAME_TICKS = 6;
-export const BOSS_DEATH_TOTAL_TICKS = BOSS_DEATH_FRAME_COUNT * BOSS_DEATH_FRAME_TICKS;
+export const BOSS_DEATH_TOTAL_TICKS =
+  BOSS_DEATH_FRAME_COUNT * BOSS_DEATH_FRAME_TICKS;
 
 // Victory cutscene: once the boss's own death animation finishes, gameplay
 // freezes (Game state 'bossdefeated') and the player plays one of
@@ -164,14 +166,14 @@ export const SOLID_TILES = new Set([1, 4, 5, 9, 10]);
 export const DECORATIVE_TILES = new Set([2, 3, 6, 7, 8]);
 
 export const TILE_IMAGE_KEYS = {
-  1: 'tile1',
-  2: 'tile2',
-  3: 'tile3',
-  4: 'tile4',
-  5: 'tile5',
-  6: 'tile6',
-  7: 'tile7',
-  8: 'tile8',
-  9: 'tile9',
-  10: 'tile10',
+  1: "tile1",
+  2: "tile2",
+  3: "tile3",
+  4: "tile4",
+  5: "tile5",
+  6: "tile6",
+  7: "tile7",
+  8: "tile8",
+  9: "tile9",
+  10: "tile10",
 };
