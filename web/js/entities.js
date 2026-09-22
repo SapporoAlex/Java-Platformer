@@ -1,18 +1,46 @@
-import { AnimatedSprite, Sprite } from './sprite.js';
+import { AnimatedSprite, Sprite } from "./sprite.js";
 import {
-  RIGHT_FACING, LEFT_FACING, MAX_HEALTH, SPRITE_SIZE,
-  WOUNDED_HEALTH_RATIO, IDLE_FRAME_COUNT,
-  ATTACK_TOTAL_TICKS, ATTACK_ACTIVE_START, ATTACK_ACTIVE_END, ATTACK_RANGE,
-  VICTORY_FRAME_COUNT, VICTORY_FRAME_TICKS, VICTORY_VARIANT_COUNT,
-  BOSS_HEALTH, BOSS_MOVE_SPEED, BOSS_JUMP_SPEED, BOSS_JUMP_INTERVAL_TICKS,
-  BOSS_ATTACK_TOTAL_TICKS, BOSS_ATTACK_ACTIVE_START, BOSS_ATTACK_ACTIVE_END,
-  BOSS_ATTACK_RANGE, BOSS_ATTACK_TRIGGER_RANGE, BOSS_ATTACK_COOLDOWN_TICKS,
-  BOSS_ATTACK_STRENGTH, BOSS_DEATH_FRAME_COUNT, BOSS_DEATH_FRAME_TICKS,
-  FIRE_ENEMY_HEALTH, FIRE_ENEMY_INTERVAL_TICKS, FIRE_ENEMY_CAST_POSE_TICKS,
-  FIREBALL_SPEED, FIREBALL_DAMAGE, FIREBALL_LIFE_TICKS,
-  SWOOP_ENEMY_HEALTH, SWOOP_PATROL_SPEED, SWOOP_TRIGGER_RANGE_X, SWOOP_TRIGGER_RANGE_Y,
-  SWOOP_DIVE_SPEED, SWOOP_MAX_DIVE, SWOOP_RETURN_SPEED, SWOOP_COOLDOWN_TICKS,
-} from './constants.js';
+  RIGHT_FACING,
+  LEFT_FACING,
+  MAX_HEALTH,
+  SPRITE_SIZE,
+  WOUNDED_HEALTH_RATIO,
+  IDLE_FRAME_COUNT,
+  ATTACK_TOTAL_TICKS,
+  ATTACK_ACTIVE_START,
+  ATTACK_ACTIVE_END,
+  ATTACK_RANGE,
+  VICTORY_FRAME_COUNT,
+  VICTORY_FRAME_TICKS,
+  VICTORY_VARIANT_COUNT,
+  BOSS_HEALTH,
+  BOSS_MOVE_SPEED,
+  BOSS_JUMP_SPEED,
+  BOSS_JUMP_INTERVAL_TICKS,
+  BOSS_ATTACK_TOTAL_TICKS,
+  BOSS_ATTACK_ACTIVE_START,
+  BOSS_ATTACK_ACTIVE_END,
+  BOSS_ATTACK_RANGE,
+  BOSS_ATTACK_TRIGGER_RANGE,
+  BOSS_ATTACK_COOLDOWN_TICKS,
+  BOSS_ATTACK_STRENGTH,
+  BOSS_DEATH_FRAME_COUNT,
+  BOSS_DEATH_FRAME_TICKS,
+  FIRE_ENEMY_HEALTH,
+  FIRE_ENEMY_INTERVAL_TICKS,
+  FIRE_ENEMY_CAST_POSE_TICKS,
+  FIREBALL_SPEED,
+  FIREBALL_DAMAGE,
+  FIREBALL_LIFE_TICKS,
+  SWOOP_ENEMY_HEALTH,
+  SWOOP_PATROL_SPEED,
+  SWOOP_TRIGGER_RANGE_X,
+  SWOOP_TRIGGER_RANGE_Y,
+  SWOOP_DIVE_SPEED,
+  SWOOP_MAX_DIVE,
+  SWOOP_RETURN_SPEED,
+  SWOOP_COOLDOWN_TICKS,
+} from "./constants.js";
 
 // Builds a numbered frame array from `images`, e.g. frames(images,
 // 'playerIdleLeft', 10) -> [images.playerIdleLeft1, ..., images.playerIdleLeft10].
@@ -41,38 +69,71 @@ export class Player extends AnimatedSprite {
     this.attackAirborne = false;
     this.onPlatform = true;
     this.inPlace = true;
+    this.flipX = false;
     this.invulnerableTicks = 0;
     this.flashTicks = 0;
     this.inVictory = false;
     this.victoryVariant = 0;
     this.victoryTick = 0;
 
-    this.idleLeft = frames(images, 'playerIdleLeft', IDLE_FRAME_COUNT);
-    this.idleRight = frames(images, 'playerIdleRight', IDLE_FRAME_COUNT);
+    this.idleLeft = frames(images, "playerIdleLeft", IDLE_FRAME_COUNT);
+    this.idleRight = frames(images, "playerIdleRight", IDLE_FRAME_COUNT);
     this.jumpLeft = [images.playerJumpLeft];
     this.jumpRight = [images.playerJumpRight];
     this.moveLeft = [images.playerMoveLeft1, images.playerMoveLeft2];
     this.moveRight = [images.playerMoveRight1, images.playerMoveRight2];
-    this.attackLeft = [images.playerFightLeft1, images.playerFightLeft2, images.playerFightLeft3];
-    this.attackRight = [images.playerFightRight1, images.playerFightRight2, images.playerFightRight3];
+    this.attackLeft = [
+      images.playerFightLeft1,
+      images.playerFightLeft2,
+      images.playerFightLeft3,
+    ];
+    this.attackRight = [
+      images.playerFightRight1,
+      images.playerFightRight2,
+      images.playerFightRight3,
+    ];
 
     // Same set again, but the "wounded" look - swapped in below half health
     // (see selectCurrentImages()) instead of the healthy sprites above.
-    this.idleLeftWounded = frames(images, 'playerIdleWoundedLeft', IDLE_FRAME_COUNT);
-    this.idleRightWounded = frames(images, 'playerIdleWoundedRight', IDLE_FRAME_COUNT);
+    this.idleLeftWounded = frames(
+      images,
+      "playerIdleWoundedLeft",
+      IDLE_FRAME_COUNT,
+    );
+    this.idleRightWounded = frames(
+      images,
+      "playerIdleWoundedRight",
+      IDLE_FRAME_COUNT,
+    );
     this.jumpLeftWounded = [images.playerJumpWoundedLeft];
     this.jumpRightWounded = [images.playerJumpWoundedRight];
-    this.moveLeftWounded = [images.playerMoveWoundedLeft1, images.playerMoveWoundedLeft2];
-    this.moveRightWounded = [images.playerMoveWoundedRight1, images.playerMoveWoundedRight2];
-    this.attackLeftWounded = [images.playerFightWoundedLeft1, images.playerFightWoundedLeft2, images.playerFightWoundedLeft3];
-    this.attackRightWounded = [images.playerFightWoundedRight1, images.playerFightWoundedRight2, images.playerFightWoundedRight3];
+    this.moveLeftWounded = [
+      images.playerMoveWoundedLeft1,
+      images.playerMoveWoundedLeft2,
+    ];
+    this.moveRightWounded = [
+      images.playerMoveWoundedRight1,
+      images.playerMoveWoundedRight2,
+    ];
+    this.attackLeftWounded = [
+      images.playerFightWoundedLeft1,
+      images.playerFightWoundedLeft2,
+      images.playerFightWoundedLeft3,
+    ];
+    this.attackRightWounded = [
+      images.playerFightWoundedRight1,
+      images.playerFightWoundedRight2,
+      images.playerFightWoundedRight3,
+    ];
 
     // 3 randomly-picked victory animations (see startVictory()), each its own
     // 10-frame set - played once after a boss's own death animation finishes.
-    this.victoryLeft = Array.from({ length: VICTORY_VARIANT_COUNT },
-      (_, i) => frames(images, `playerVictory${i + 1}Left`, VICTORY_FRAME_COUNT));
-    this.victoryRight = Array.from({ length: VICTORY_VARIANT_COUNT },
-      (_, i) => frames(images, `playerVictory${i + 1}Right`, VICTORY_FRAME_COUNT));
+    this.victoryLeft = Array.from({ length: VICTORY_VARIANT_COUNT }, (_, i) =>
+      frames(images, `playerVictory${i + 1}Left`, VICTORY_FRAME_COUNT),
+    );
+    this.victoryRight = Array.from({ length: VICTORY_VARIANT_COUNT }, (_, i) =>
+      frames(images, `playerVictory${i + 1}Right`, VICTORY_FRAME_COUNT),
+    );
 
     this.currentImages = this.idleRight;
   }
@@ -97,10 +158,12 @@ export class Player extends AnimatedSprite {
   }
 
   isAttackActive() {
-    return this.attacking
-      && !this.hasHitThisSwing
-      && this.attackTick >= this.attackActiveStart
-      && this.attackTick <= this.attackActiveEnd;
+    return (
+      this.attacking &&
+      !this.hasHitThisSwing &&
+      this.attackTick >= this.attackActiveStart &&
+      this.attackTick <= this.attackActiveEnd
+    );
   }
 
   // Hit box in front of the player, in the direction they're facing.
@@ -108,9 +171,19 @@ export class Player extends AnimatedSprite {
     const top = this.getTop();
     const bottom = this.getBottom();
     if (this.direction === LEFT_FACING) {
-      return { left: this.getLeft() - ATTACK_RANGE, right: this.getLeft(), top, bottom };
+      return {
+        left: this.getLeft() - ATTACK_RANGE,
+        right: this.getLeft(),
+        top,
+        bottom,
+      };
     }
-    return { left: this.getRight(), right: this.getRight() + ATTACK_RANGE, top, bottom };
+    return {
+      left: this.getRight(),
+      right: this.getRight() + ATTACK_RANGE,
+      top,
+      bottom,
+    };
   }
 
   // Kicks off one of the VICTORY_VARIANT_COUNT victory animations (`variant`
@@ -126,8 +199,12 @@ export class Player extends AnimatedSprite {
 
   updateVictoryAnimation() {
     this.victoryTick++;
-    const idx = Math.min(VICTORY_FRAME_COUNT - 1, Math.floor(this.victoryTick / VICTORY_FRAME_TICKS));
-    const set = this.direction === LEFT_FACING ? this.victoryLeft : this.victoryRight;
+    const idx = Math.min(
+      VICTORY_FRAME_COUNT - 1,
+      Math.floor(this.victoryTick / VICTORY_FRAME_TICKS),
+    );
+    const set =
+      this.direction === LEFT_FACING ? this.victoryLeft : this.victoryRight;
     this.index = idx;
     this.image = set[this.victoryVariant][idx];
   }
@@ -162,31 +239,29 @@ export class Player extends AnimatedSprite {
   }
 
   selectCurrentImages() {
-    const wounded = this.health <= this.maxHealth * WOUNDED_HEALTH_RATIO;
+    this.flipX = this.direction === LEFT_FACING;
 
     if (this.attacking) {
       // No dedicated air-attack sprite exists, so an airborne swing reuses
       // the jump pose as a base - game.js spins it into an aerial slash,
       // which reads as clearly different from the grounded 3-frame chop.
       if (this.attackAirborne) {
-        this.currentImages = this.direction === LEFT_FACING
-          ? (wounded ? this.jumpLeftWounded : this.jumpLeft)
-          : (wounded ? this.jumpRightWounded : this.jumpRight);
+        this.currentImages =
+          this.direction === LEFT_FACING ? this.jumpLeft : this.jumpRight;
       } else {
-        this.currentImages = this.direction === LEFT_FACING
-          ? (wounded ? this.attackLeftWounded : this.attackLeft)
-          : (wounded ? this.attackRightWounded : this.attackRight);
+        this.currentImages =
+          this.direction === LEFT_FACING ? this.attackLeft : this.attackRight;
       }
       return;
     }
     if (this.direction === RIGHT_FACING) {
-      if (this.inPlace) this.currentImages = wounded ? this.idleRightWounded : this.idleRight;
-      else if (!this.onPlatform) this.currentImages = wounded ? this.jumpRightWounded : this.jumpRight;
-      else this.currentImages = wounded ? this.moveRightWounded : this.moveRight;
+      if (this.inPlace) this.currentImages = this.idleRight;
+      else if (!this.onPlatform) this.currentImages = this.jumpRight;
+      else this.currentImages = this.moveRight;
     } else if (this.direction === LEFT_FACING) {
-      if (this.inPlace) this.currentImages = wounded ? this.idleLeftWounded : this.idleLeft;
-      else if (!this.onPlatform) this.currentImages = wounded ? this.jumpLeftWounded : this.jumpLeft;
-      else this.currentImages = wounded ? this.moveLeftWounded : this.moveLeft;
+      if (this.inPlace) this.currentImages = this.idleLeft;
+      else if (!this.onPlatform) this.currentImages = this.jumpLeft;
+      else this.currentImages = this.moveLeft;
     }
   }
 }
@@ -200,8 +275,16 @@ export class Enemy extends AnimatedSprite {
     this.maxHealth = 20;
     this.alive = true;
     this.hitstunTicks = 0;
-    this.moveLeft = [images.spiderWalkLeft1, images.spiderWalkLeft2, images.spiderWalkLeft3];
-    this.moveRight = [images.spiderWalkRight1, images.spiderWalkRight2, images.spiderWalkRight3];
+    this.moveLeft = [
+      images.spiderWalkLeft1,
+      images.spiderWalkLeft2,
+      images.spiderWalkLeft3,
+    ];
+    this.moveRight = [
+      images.spiderWalkRight1,
+      images.spiderWalkRight2,
+      images.spiderWalkRight3,
+    ];
     this.currentImages = this.moveRight;
     this.direction = RIGHT_FACING;
     this.boundaryLeft = boundaryLeft;
@@ -309,9 +392,11 @@ export class FireEnemy extends AnimatedSprite {
 
   selectCurrentImages() {
     if (this.castTicks > 0) {
-      this.currentImages = this.direction === LEFT_FACING ? this.castLeft : this.castRight;
+      this.currentImages =
+        this.direction === LEFT_FACING ? this.castLeft : this.castRight;
     } else {
-      this.currentImages = this.direction === LEFT_FACING ? this.idleLeft : this.idleRight;
+      this.currentImages =
+        this.direction === LEFT_FACING ? this.idleLeft : this.idleRight;
     }
   }
 }
@@ -334,7 +419,7 @@ export class SwoopEnemy extends AnimatedSprite {
     this.boundaryLeft = boundaryLeft;
     this.boundaryRight = boundaryRight;
     this.homeY = homeY;
-    this.mode = 'patrol'; // 'patrol' | 'diving' | 'returning'
+    this.mode = "patrol"; // 'patrol' | 'diving' | 'returning'
     this.diveDistance = 0;
     this.cooldownTicks = 0;
     this.changeX = SWOOP_PATROL_SPEED;
@@ -353,26 +438,28 @@ export class SwoopEnemy extends AnimatedSprite {
   // Decide this tick's vertical intent; game.js calls update() right after
   // to actually apply changeX/changeY.
   think(playerCenterX, playerCenterY) {
-    if (this.mode === 'patrol') {
+    if (this.mode === "patrol") {
       if (this.cooldownTicks > 0) this.cooldownTicks--;
-      const withinX = Math.abs(playerCenterX - this.centerX) < SWOOP_TRIGGER_RANGE_X;
-      const withinY = Math.abs(playerCenterY - this.centerY) < SWOOP_TRIGGER_RANGE_Y;
+      const withinX =
+        Math.abs(playerCenterX - this.centerX) < SWOOP_TRIGGER_RANGE_X;
+      const withinY =
+        Math.abs(playerCenterY - this.centerY) < SWOOP_TRIGGER_RANGE_Y;
       if (this.cooldownTicks <= 0 && withinX && withinY) {
-        this.mode = 'diving';
+        this.mode = "diving";
         this.diveDistance = 0;
         this.changeY = SWOOP_DIVE_SPEED;
       }
-    } else if (this.mode === 'diving') {
+    } else if (this.mode === "diving") {
       this.diveDistance += this.changeY;
       if (this.diveDistance >= SWOOP_MAX_DIVE) {
-        this.mode = 'returning';
+        this.mode = "returning";
         this.changeY = -SWOOP_RETURN_SPEED;
       }
-    } else if (this.mode === 'returning') {
+    } else if (this.mode === "returning") {
       if (this.centerY <= this.homeY) {
         this.centerY = this.homeY;
         this.changeY = 0;
-        this.mode = 'patrol';
+        this.mode = "patrol";
         this.cooldownTicks = SWOOP_COOLDOWN_TICKS;
       }
     }
@@ -380,7 +467,7 @@ export class SwoopEnemy extends AnimatedSprite {
 
   update() {
     super.update();
-    if (this.mode === 'patrol') {
+    if (this.mode === "patrol") {
       if (this.getLeft() <= this.boundaryLeft) {
         this.setLeft(this.boundaryLeft);
         this.changeX = Math.abs(this.changeX);
@@ -397,7 +484,8 @@ export class SwoopEnemy extends AnimatedSprite {
   }
 
   selectCurrentImages() {
-    this.currentImages = this.direction === LEFT_FACING ? this.moveLeft : this.moveRight;
+    this.currentImages =
+      this.direction === LEFT_FACING ? this.moveLeft : this.moveRight;
   }
 }
 
@@ -408,14 +496,18 @@ export class SwoopEnemy extends AnimatedSprite {
 function bossSpriteSet(images, prefix) {
   const key = (suffix) => images[`${prefix}${suffix}`];
   return {
-    standLeft: [key('StandLeft')],
-    standRight: [key('StandRight')],
-    moveLeft: [key('MoveLeft1'), key('MoveLeft2')],
-    moveRight: [key('MoveRight1'), key('MoveRight2')],
-    jumpLeft: [key('JumpLeft')],
-    jumpRight: [key('JumpRight')],
-    attackLeft: [key('AttackLeft1'), key('AttackLeft2'), key('AttackLeft3')],
-    attackRight: [key('AttackRight1'), key('AttackRight2'), key('AttackRight3')],
+    standLeft: [key("StandLeft")],
+    standRight: [key("StandRight")],
+    moveLeft: [key("MoveLeft1"), key("MoveLeft2")],
+    moveRight: [key("MoveRight1"), key("MoveRight2")],
+    jumpLeft: [key("JumpLeft")],
+    jumpRight: [key("JumpRight")],
+    attackLeft: [key("AttackLeft1"), key("AttackLeft2"), key("AttackLeft3")],
+    attackRight: [
+      key("AttackRight1"),
+      key("AttackRight2"),
+      key("AttackRight3"),
+    ],
     deathLeft: frames(images, `${prefix}DeathLeft`, BOSS_DEATH_FRAME_COUNT),
     deathRight: frames(images, `${prefix}DeathRight`, BOSS_DEATH_FRAME_COUNT),
   };
@@ -430,7 +522,7 @@ function bossSpriteSet(images, prefix) {
 // (see BOSS asset prefixes in assets.js and the `boss` field in levels-data.js).
 export class BossEnemy extends AnimatedSprite {
   constructor(images, boundaryLeft, boundaryRight, options = {}) {
-    const assetPrefix = options.assetPrefix ?? 'boss';
+    const assetPrefix = options.assetPrefix ?? "boss";
     const sprites = bossSpriteSet(images, assetPrefix);
     super(sprites.standRight[0], 1.0);
     this.assetPrefix = assetPrefix; // also used to look up this boss's music track
@@ -459,11 +551,13 @@ export class BossEnemy extends AnimatedSprite {
     // own body a fireball can originate from (fireballOrigins: 'center'
     // and/or 'top') - see the `boss` field in levels-data.js for each fight's
     // actual numbers.
-    const intervalMin = options.fireballIntervalMinTicks ?? options.fireballIntervalTicks ?? null;
-    const intervalMax = options.fireballIntervalMaxTicks ?? options.fireballIntervalTicks ?? null;
+    const intervalMin =
+      options.fireballIntervalMinTicks ?? options.fireballIntervalTicks ?? null;
+    const intervalMax =
+      options.fireballIntervalMaxTicks ?? options.fireballIntervalTicks ?? null;
     this.fireballIntervalMin = intervalMin;
     this.fireballIntervalMax = intervalMax;
-    this.fireballOrigins = options.fireballOrigins ?? ['center'];
+    this.fireballOrigins = options.fireballOrigins ?? ["center"];
     this.fireballCooldownTicks = this.randomFireballInterval();
 
     this.standLeft = sprites.standLeft;
@@ -492,8 +586,14 @@ export class BossEnemy extends AnimatedSprite {
 
   updateDeathAnimation() {
     this.deathTick++;
-    const idx = Math.min(BOSS_DEATH_FRAME_COUNT - 1, Math.floor(this.deathTick / BOSS_DEATH_FRAME_TICKS));
-    this.image = this.direction === LEFT_FACING ? this.deathLeft[idx] : this.deathRight[idx];
+    const idx = Math.min(
+      BOSS_DEATH_FRAME_COUNT - 1,
+      Math.floor(this.deathTick / BOSS_DEATH_FRAME_TICKS),
+    );
+    this.image =
+      this.direction === LEFT_FACING
+        ? this.deathLeft[idx]
+        : this.deathRight[idx];
   }
 
   isDeathAnimationDone() {
@@ -526,26 +626,43 @@ export class BossEnemy extends AnimatedSprite {
     this.fireballCooldownTicks--;
     if (this.fireballCooldownTicks > 0) return null;
     this.fireballCooldownTicks = this.randomFireballInterval();
-    const direction = playerCenterX >= this.centerX ? RIGHT_FACING : LEFT_FACING;
-    const origin = this.fireballOrigins[Math.floor(Math.random() * this.fireballOrigins.length)];
-    const centerY = origin === 'top' ? this.getTop() + this.h * 0.15 : this.centerY;
+    const direction =
+      playerCenterX >= this.centerX ? RIGHT_FACING : LEFT_FACING;
+    const origin =
+      this.fireballOrigins[
+        Math.floor(Math.random() * this.fireballOrigins.length)
+      ];
+    const centerY =
+      origin === "top" ? this.getTop() + this.h * 0.15 : this.centerY;
     return { centerX: this.centerX, centerY, direction };
   }
 
   isAttackActive() {
-    return this.attacking
-      && !this.hasHitThisSwing
-      && this.attackTick >= BOSS_ATTACK_ACTIVE_START
-      && this.attackTick <= BOSS_ATTACK_ACTIVE_END;
+    return (
+      this.attacking &&
+      !this.hasHitThisSwing &&
+      this.attackTick >= BOSS_ATTACK_ACTIVE_START &&
+      this.attackTick <= BOSS_ATTACK_ACTIVE_END
+    );
   }
 
   getAttackHitbox() {
     const top = this.getTop();
     const bottom = this.getBottom();
     if (this.direction === LEFT_FACING) {
-      return { left: this.getLeft() - BOSS_ATTACK_RANGE, right: this.getLeft(), top, bottom };
+      return {
+        left: this.getLeft() - BOSS_ATTACK_RANGE,
+        right: this.getLeft(),
+        top,
+        bottom,
+      };
     }
-    return { left: this.getRight(), right: this.getRight() + BOSS_ATTACK_RANGE, top, bottom };
+    return {
+      left: this.getRight(),
+      right: this.getRight() + BOSS_ATTACK_RANGE,
+      top,
+      bottom,
+    };
   }
 
   // Decide this tick's intent (attack / jump / patrol) from the player's
@@ -573,9 +690,11 @@ export class BossEnemy extends AnimatedSprite {
     }
     if (this.jumpTicks > 0) this.jumpTicks--;
 
-    const withinReach = Math.abs(playerCenterX - this.centerX) < BOSS_ATTACK_TRIGGER_RANGE;
+    const withinReach =
+      Math.abs(playerCenterX - this.centerX) < BOSS_ATTACK_TRIGGER_RANGE;
     if (this.attackCooldownTicks <= 0 && withinReach && this.onPlatform) {
-      this.direction = playerCenterX >= this.centerX ? RIGHT_FACING : LEFT_FACING;
+      this.direction =
+        playerCenterX >= this.centerX ? RIGHT_FACING : LEFT_FACING;
       this.attacking = true;
       this.attackTick = 0;
       this.hasHitThisSwing = false;
@@ -589,7 +708,9 @@ export class BossEnemy extends AnimatedSprite {
       this.jumpTicks = BOSS_JUMP_INTERVAL_TICKS;
     }
 
-    if (this.changeX === 0) this.changeX = this.direction === LEFT_FACING ? -BOSS_MOVE_SPEED : BOSS_MOVE_SPEED;
+    if (this.changeX === 0)
+      this.changeX =
+        this.direction === LEFT_FACING ? -BOSS_MOVE_SPEED : BOSS_MOVE_SPEED;
   }
 
   // Called after physics resolves this tick's movement: bounce off the
@@ -634,13 +755,17 @@ export class BossEnemy extends AnimatedSprite {
 
   selectCurrentImages() {
     if (this.attacking) {
-      this.currentImages = this.direction === LEFT_FACING ? this.attackLeft : this.attackRight;
+      this.currentImages =
+        this.direction === LEFT_FACING ? this.attackLeft : this.attackRight;
     } else if (!this.onPlatform) {
-      this.currentImages = this.direction === LEFT_FACING ? this.jumpLeft : this.jumpRight;
+      this.currentImages =
+        this.direction === LEFT_FACING ? this.jumpLeft : this.jumpRight;
     } else if (this.changeX === 0) {
-      this.currentImages = this.direction === LEFT_FACING ? this.standLeft : this.standRight;
+      this.currentImages =
+        this.direction === LEFT_FACING ? this.standLeft : this.standRight;
     } else {
-      this.currentImages = this.direction === LEFT_FACING ? this.moveLeft : this.moveRight;
+      this.currentImages =
+        this.direction === LEFT_FACING ? this.moveLeft : this.moveRight;
     }
   }
 }
@@ -649,7 +774,12 @@ export class BossEnemy extends AnimatedSprite {
 export class Coin extends AnimatedSprite {
   constructor(images) {
     super(images.gold1, 1.0);
-    this.standNeutral = [images.gold1, images.gold2, images.gold3, images.gold4];
+    this.standNeutral = [
+      images.gold1,
+      images.gold2,
+      images.gold3,
+      images.gold4,
+    ];
     this.currentImages = this.standNeutral;
   }
 }
@@ -671,10 +801,18 @@ export class Door {
     this.centerY = row * SPRITE_SIZE + SPRITE_SIZE;
   }
 
-  getLeft() { return this.centerX - this.w / 2; }
-  getRight() { return this.centerX + this.w / 2; }
-  getTop() { return this.centerY - this.h / 2; }
-  getBottom() { return this.centerY + this.h / 2; }
+  getLeft() {
+    return this.centerX - this.w / 2;
+  }
+  getRight() {
+    return this.centerX + this.w / 2;
+  }
+  getTop() {
+    return this.centerY - this.h / 2;
+  }
+  getBottom() {
+    return this.centerY + this.h / 2;
+  }
 
   display(ctx, viewX, viewY) {
     ctx.drawImage(

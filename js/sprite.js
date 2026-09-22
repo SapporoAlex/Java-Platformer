@@ -1,4 +1,4 @@
-import { NEUTRAL_FACING, RIGHT_FACING, LEFT_FACING } from './constants.js';
+import { NEUTRAL_FACING, RIGHT_FACING, LEFT_FACING } from "./constants.js";
 
 // Direct port of Sprite.pde: a positioned, box-collidable image.
 export class Sprite {
@@ -11,16 +11,21 @@ export class Sprite {
     this.centerY = y;
     this.changeX = 0;
     this.changeY = 0;
+    this.flipX = false;
   }
 
   display(ctx, viewX, viewY) {
-    ctx.drawImage(
-      this.image,
-      this.centerX - this.w / 2 - viewX,
-      this.centerY - this.h / 2 - viewY,
-      this.w,
-      this.h,
-    );
+    const x = this.centerX - this.w / 2 - viewX;
+    const y = this.centerY - this.h / 2 - viewY;
+    if (this.flipX) {
+      ctx.save();
+      ctx.translate(x + this.w, y);
+      ctx.scale(-1, 1);
+      ctx.drawImage(this.image, 0, 0, this.w, this.h);
+      ctx.restore();
+      return;
+    }
+    ctx.drawImage(this.image, x, y, this.w, this.h);
   }
 
   update() {
@@ -28,14 +33,30 @@ export class Sprite {
     this.centerY += this.changeY;
   }
 
-  setLeft(left) { this.centerX = left + this.w / 2; }
-  getLeft() { return this.centerX - this.w / 2; }
-  setRight(right) { this.centerX = right - this.w / 2; }
-  getRight() { return this.centerX + this.w / 2; }
-  setTop(top) { this.centerY = top + this.h / 2; }
-  getTop() { return this.centerY - this.h / 2; }
-  setBottom(bottom) { this.centerY = bottom - this.h / 2; }
-  getBottom() { return this.centerY + this.h / 2; }
+  setLeft(left) {
+    this.centerX = left + this.w / 2;
+  }
+  getLeft() {
+    return this.centerX - this.w / 2;
+  }
+  setRight(right) {
+    this.centerX = right - this.w / 2;
+  }
+  getRight() {
+    return this.centerX + this.w / 2;
+  }
+  setTop(top) {
+    this.centerY = top + this.h / 2;
+  }
+  getTop() {
+    return this.centerY - this.h / 2;
+  }
+  setBottom(bottom) {
+    this.centerY = bottom - this.h / 2;
+  }
+  getBottom() {
+    return this.centerY + this.h / 2;
+  }
 }
 
 // Direct port of AnimatedSprite.pde: frame-based image-array animation.
