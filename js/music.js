@@ -1,24 +1,24 @@
-// Background music, driven entirely by file naming convention under
-// music/ - none of these files exist yet; everything here is written to
-// fail silently (no thrown errors, no broken game) until they're added, then
-// just start working. Drop in:
+// Background music. Tracks live in music/ at the repo root; edit TRACKS to
+// add or swap files - nothing else needs to change. A missing file just
+// plays silence.
 //
-//   music/title.mp3        - start screen
-//   music/level1.mp3       - level 1's looping bg music
-//   music/level2.mp3       - level 2's, and so on for every level (see
-//                               LEVELS in levels-data.js - "level" + the
-//                               level's 1-based number)
-//   music/boss.mp3         - boss music for a boss using assetPrefix 'boss'
-//   music/boss2.mp3        - ...assetPrefix 'boss2' (Fortress Approach)
-//   music/boss3.mp3        - ...assetPrefix 'boss3' (the final boss)
-//   music/victory.mp3      - the "You Win!" end screen
+//   title     main menu
+//   level     every stage picks one of these at random when it loads (and
+//             keeps it if you lose a life and retry the same stage)
+//   boss      each boss fight picks one at random when the arena seals
+//   victory   the ending screen (plays once, no loop)
 //
-// Boss tracks are matched by the same `assetPrefix` each boss already uses
-// for its sprite set (see the `boss` field in levels-data.js), so adding a
-// 4th boss later with assetPrefix 'boss4' just needs a boss4.mp3 alongside
-// its boss4_*.png frames - nothing in this file has to change.
-//
-// All tracks loop. Switching tracks crossfades rather than hard-cutting.
+// Switching tracks crossfades rather than hard-cutting.
+export const TRACKS = {
+  title: ['menu.mp3'],
+  level: ['level music 1.mp3', 'level music 2.mp3'],
+  boss: ['boss 1.mp3', 'boss 2.mp3'],
+  victory: ['win.mp3'],
+};
+
+const trackUrl = (file) => `music/${encodeURIComponent(file)}`;
+const pickTrack = (list) => trackUrl(list[Math.floor(Math.random() * list.length)]);
+
 export class MusicPlayer {
   constructor({ volume = 0.5, fadeMs = 1200 } = {}) {
     this.volume = volume;
@@ -29,7 +29,8 @@ export class MusicPlayer {
     this.current = null; // { audio }
     this.fadeHandle = null;
     this.levelNumber = null;
-    this.bossTrackSrc = null;
+    this.levelTrack = null;
+    this.hasBoss = false;
     this.bossActive = false;
     this.muted = false;
   }
@@ -53,55 +54,59 @@ export class MusicPlayer {
   }
 
   playTitle() {
-    this._crossfadeTo('title', 'music/title.mp3');
+    this.levelNumber = null; // the next stage started picks a fresh track
+    this._crossfadeTo(pickTrack(TRACKS.title));
   }
 
   playVictory() {
-    this._crossfadeTo('victory', 'music/victory.mp3');
+    this._crossfadeTo(pickTrack(TRACKS.victory), { loop: false });
   }
 
-  // Called once when a level loads. `bossAssetPrefix` is the boss's
-  // assetPrefix (e.g. 'boss2') if this level has one, else null/undefined.
+  // Called whenever a stage loads (including a retry after losing a life).
+  // `bossAssetPrefix` is truthy if the stage has a boss.
   playLevel(levelNumber, bossAssetPrefix) {
+    if (levelNumber !== this.levelNumber || !this.levelTrack) {
+      this.levelTrack = pickTrack(TRACKS.level);
+    }
     this.levelNumber = levelNumber;
-    this.bossTrackSrc = bossAssetPrefix ? `music/${bossAssetPrefix}.mp3` : null;
+    this.hasBoss = !!bossAssetPrefix;
     this.bossActive = false;
-    this._crossfadeTo(`level${levelNumber}`, `music/level${levelNumber}.mp3`);
+    this._crossfadeTo(this.levelTrack);
   }
 
-  // Called every tick a level with a boss is playing; only actually swaps
-  // tracks on a true -> false or false -> true transition.
+  // Called when a boss arena seals (true) and when the fight ends or the
+  // player dies (false); only acts on an actual change.
   setBossActive(active) {
     if (active === this.bossActive) return;
     this.bossActive = active;
-    if (active && this.bossTrackSrc) {
-      this._crossfadeTo(`boss:${this.bossTrackSrc}`, this.bossTrackSrc);
-    } else if (this.levelNumber != null) {
-      this._crossfadeTo(`level${this.levelNumber}`, `music/level${this.levelNumber}.mp3`);
+    if (active && this.hasBoss) {
+      this._crossfadeTo(pickTrack(TRACKS.boss));
+    } else if (this.levelTrack) {
+      this._crossfadeTo(this.levelTrack);
     }
   }
 
   stop() {
-    this._crossfadeTo(null, null);
+    this._crossfadeTo(null);
   }
 
-  _crossfadeTo(key, src) {
+  _crossfadeTo(src, { loop = true } = {}) {
     if (!this.unlocked) {
-      this.queued = () => this._crossfadeTo(key, src);
+      this.queued = () => this._crossfadeTo(src, { loop });
       return;
     }
-    if (this.currentKey === key) return;
-    this.currentKey = key;
+    if (this.currentKey === src) return;
+    this.currentKey = src;
 
     const prev = this.current;
     let next = null;
     if (src) {
       const audio = new Audio(src);
-      audio.loop = true;
+      audio.loop = loop;
       audio.volume = 0;
       audio.muted = this.muted;
       audio.addEventListener('error', () => {
-        // Expected until this specific mp3 has been added - just stay silent.
+        // Missing or undecodable file - just stay silent.
       });
       audio.play().catch(() => {}); // missing file, or a stricter autoplay policy - either way, silence is fine
       next = { audio };

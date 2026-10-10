@@ -822,9 +822,75 @@ export class Game {
     const camX = this.time * 1.5;
     this.world.drawSky(ctx, theme, camX, 0, this.time);
     this.world.drawParallax(ctx, theme, camX, 0);
+    this.drawTitleGhosts(ctx);
     if (this.time % 7 === 0) this.fx.petal(Math.random() * CANVAS_WIDTH * 1.3, -20, theme.petals);
     this.fx.update();
     this.fx.draw(ctx, 'front');
+  }
+
+  // Title-screen ambience: now and then a yurei drifts across the backdrop
+  // from right to left, blurred (more so the further away it is) so it reads
+  // as something glimpsed through the mist rather than a gameplay enemy.
+  // Driven by this.time (simulation ticks), so its speed doesn't depend on
+  // the display's refresh rate.
+  drawTitleGhosts(ctx) {
+    const frame = this.art.ghost.fly?.left[0];
+    if (!frame) return;
+    this.titleGhosts ??= [];
+    this.nextTitleGhost ??= this.time + 90;
+    if (this.time >= this.nextTitleGhost) {
+      const depth = Math.random(); // 0 = far, 1 = near
+      this.titleGhosts.push({
+        born: this.time,
+        depth,
+        y: CANVAS_HEIGHT * (0.18 + Math.random() * 0.4),
+        height: 150 + depth * 230,
+        speed: 2.2 + depth * 3.5 + Math.random(),
+        wobble: Math.random() * Math.PI * 2,
+      });
+      this.nextTitleGhost = this.time + 240 + Math.random() * 420;
+    }
+    for (const g of this.titleGhosts) {
+      const t = this.time - g.born;
+      const h = g.height;
+      const w = h * (frame.width / frame.height);
+      g.x = CANVAS_WIDTH + w - t * g.speed;
+      const y = g.y + Math.sin(t * 0.03 + g.wobble) * 30;
+      ctx.save();
+      ctx.globalAlpha = 0.35 + g.depth * 0.3;
+      ctx.translate(g.x, y);
+      ctx.rotate(Math.sin(t * 0.02 + g.wobble) * 0.08 - 0.12);
+      ctx.drawImage(this.blurredGhost(frame, g.depth < 0.5 ? 2 : 1), -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
+    this.titleGhosts = this.titleGhosts.filter((g) => g.x > -400);
+  }
+
+  // A soft-focus copy of `img`, made by shrinking it and scaling back up
+  // (works everywhere, unlike canvas blur filters). `level` 1 = soft, 2 = very soft.
+  blurredGhost(img, level) {
+    this.blurCache ??= new Map();
+    const key = level;
+    if (this.blurCache.has(key)) return this.blurCache.get(key);
+    const shrink = level === 2 ? 0.05 : 0.09;
+    const small = document.createElement('canvas');
+    small.width = Math.max(2, Math.round(img.width * shrink));
+    small.height = Math.max(2, Math.round(img.height * shrink));
+    const sctx = small.getContext('2d');
+    sctx.imageSmoothingQuality = 'high';
+    sctx.drawImage(img, 0, 0, small.width, small.height);
+    const out = document.createElement('canvas');
+    out.width = Math.round(img.width * 0.5);
+    out.height = Math.round(img.height * 0.5);
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    // Two offset passes smooth out the blockiness of the upscale.
+    octx.globalAlpha = 0.6;
+    octx.drawImage(small, 0, 0, out.width, out.height);
+    octx.drawImage(small, 3, 2, out.width, out.height);
+    this.blurCache.set(key, out);
+    return out;
   }
 
   renderHud(ctx) {
