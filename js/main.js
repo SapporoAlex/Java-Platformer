@@ -212,10 +212,15 @@ function renderLevelIntroScreen(game) {
 async function boot() {
   const pct = $('loading-pct');
   const openingReady = preloadOpening();
+  // Sound effects download and decode while the loading screen is up, so the
+  // opening's cues are ready when the player presses a key.
+  const sfx = new Sfx();
+  const sfxReady = sfx.init();
   const images = await loadImages((done, total) => {
     pct.textContent = `${Math.round((done / total) * 100)}%`;
   });
   await openingReady;
+  await Promise.race([sfxReady, new Promise((r) => { setTimeout(r, 6000); })]);
   const art = buildArt(images);
   // Build the outlined copies of every character frame up front, so the
   // first time an enemy appears doesn't hitch.
@@ -235,7 +240,6 @@ async function boot() {
   loadDeferred(images, art);
   $('loading-screen').classList.add('hidden');
 
-  const sfx = new Sfx();
   const music = new MusicPlayer();
   const game = new Game(canvas, images, art, sfx, music);
   const input = new Input(window);

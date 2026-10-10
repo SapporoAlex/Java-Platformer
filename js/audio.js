@@ -65,17 +65,40 @@ export class Sfx {
     this.muted = false;
   }
 
-  unlock() {
-    if (!this.ctx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-      this.ctx = new AudioContextClass();
-      this.master = this.ctx.createGain();
-      this.master.gain.value = this.volume;
-      this.master.connect(this.ctx.destination);
-      this.loadFiles();
+  // Creates the audio context and starts downloading/decoding every sound
+  // right away - called during the loading screen, before any user input, so
+  // the sounds are ready the moment they're needed (e.g. the opening's cues).
+  // The context starts suspended until unlock() runs from a user gesture.
+  // Returns a promise that settles once the files are loaded.
+  init() {
+    if (this.ctx) return this.ready;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      this.ready = Promise.resolve();
+      return this.ready;
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.ctx = new AudioContextClass();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : this.volume;
+    this.master.connect(this.ctx.destination);
+    this.ready = this.loadFiles();
+    return this.ready;
+  }
+
+  // Must run inside a user gesture (key / tap / click): resumes the context
+  // and plays one silent sample, which is what Safari / iOS need to fully
+  // allow sound from then on.
+  unlock() {
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    if (!this.warmedUp) {
+      this.warmedUp = true;
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      src.connect(this.ctx.destination);
+      src.start();
+    }
   }
 
   async fetchBuffer(url) {

@@ -52,8 +52,15 @@ export class Opening {
       e.stopPropagation();
       this.press();
     };
+    // Safari / iOS only count some events (tap release, click) as a gesture
+    // that may start audio, so unlock on those too.
+    this.onRelease = () => {
+      if (this.state !== 'done') this.onUnlock?.();
+    };
     window.addEventListener('keydown', this.onKey, true);
     window.addEventListener('pointerdown', this.onPointer, true);
+    window.addEventListener('touchend', this.onRelease, true);
+    window.addEventListener('click', this.onRelease, true);
   }
 
   get active() {
@@ -142,6 +149,8 @@ export class Opening {
     black.style.opacity = 1;
     window.removeEventListener('keydown', this.onKey, true);
     window.removeEventListener('pointerdown', this.onPointer, true);
+    window.removeEventListener('touchend', this.onRelease, true);
+    window.removeEventListener('click', this.onRelease, true);
     this.onDone?.(skipped);
     // Stop catching clicks right away; hide when the fade ends, with a timer
     // as backup (animations pause in background tabs).
