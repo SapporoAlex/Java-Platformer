@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SFX preview</title>
+    <style>
+      body { font-family: Georgia, serif; background: #f4ecd8; color: #1b1210; margin: 0; padding: 24px; }
+      h1 { margin: 0 0 4px; }
+      p { margin: 0 0 20px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+      .sound { background: #fff; border: 2px solid #1b1210; border-radius: 6px; padding: 10px; }
+      .sound h2 { font-size: 16px; margin: 0 0 6px; }
+      .sound.missing { opacity: 0.5; }
+      button { font: inherit; margin: 2px; padding: 4px 10px; border: 2px solid #1b1210; border-radius: 4px; background: #c0392b; color: #fff; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Sound effects</h1>
+    <p>Every file in <code>sfx/</code>, by the name the game plays it under. Click to listen.
+      Regenerate with <code>python tools/make_sfx.py</code>, or replace any file with your own.</p>
+    <div class="grid" id="grid"></div>
+    <script type="module">
+      import { SFX_NAMES } from '../js/audio.js';
+
+      const grid = document.getElementById('grid');
+      const exists = async (url) => (await fetch(url, { method: 'HEAD' })).ok;
+
+      for (const name of SFX_NAMES) {
+        const card = document.createElement('div');
+        card.className = 'sound';
+        card.innerHTML = `<h2>${name}</h2>`;
+        grid.appendChild(card);
+        const files = [];
+        for (let i = 1; i <= 8; i++) {
+          const url = `../sfx/${name}${i === 1 ? '' : i}.wav`;
+          if (!(await exists(url))) break;
+          files.push(url);
+        }
+        if (!files.length) {
+          card.classList.add('missing');
+          card.append('no file - the game plays a synth blip');
+        }
+        files.forEach((url, i) => {
+          const b = document.createElement('button');
+          b.textContent = files.length > 1 ? `▶ ${i + 1}` : '▶ play';
+          b.onclick = () => new Audio(url).play();
+          card.appendChild(b);
+        });
+      }
+    </script>
+  </body>
+</html>

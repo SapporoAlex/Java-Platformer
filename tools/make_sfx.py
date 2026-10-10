@@ -117,8 +117,8 @@ def reverb(x, length=0.35, mix_amt=0.18, tone_hz=5000):
     ir = rng.standard_normal(n) * np.exp(-np.arange(n) / SR * (6.0 / length))
     ir = lowpass(ir, tone_hz)
     ir /= np.sqrt(np.sum(ir ** 2))
-    wet = np.convolve(x, ir)[: len(x) + n]
-    dry = np.concatenate([x, np.zeros(n)])
+    wet = np.convolve(x, ir)  # length len(x) + n - 1
+    dry = np.concatenate([x, np.zeros(n - 1)])
     return dry + mix_amt * wet
 
 
@@ -269,7 +269,7 @@ def main():
     print("Effects (synthesized):")
     save("slash", swish(0.18, 1200, 5200))
     save("slash2", swish(0.17, 1000, 4600))
-    save("jump", swish(0.16, 500, 1800, 0.6) + 0.3 * tone([(330, 1)], 0.12, 0.08))
+    save("jump", mix((swish(0.16, 500, 1800, 0.6), 0), (0.3 * tone([(330, 1)], 0.12, 0.08), 0)))
     save("land", thud(95, 0.16, 0.4) * 0.8)
     save("hit", mix((thud(140, 0.18, 0.6), 0), (highpass(rng.standard_normal(int(0.07 * SR)), 2500) * env(int(0.07 * SR), 0.001, 0.03, 4), 0)))
     save("hit2", mix((thud(120, 0.2, 0.5), 0), (bandpass(rng.standard_normal(int(0.09 * SR)), 1500, 7000) * env(int(0.09 * SR), 0.001, 0.04, 4), 0)))

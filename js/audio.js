@@ -1,24 +1,38 @@
 // Sound effects. Every effect is triggered by name - sfx.play('coin') - and
 // looks for a matching file in sfx/ first:
 //
-//   sfx/<name>.mp3   (or .ogg / .wav)
+//   sfx/<name>.wav   (or .mp3 / .ogg)
 //
-// Names: jump, land, attack, hit, enemyDie, hurt, die, coin, heal, buy, door,
-// locked, fireball, windup, bossSlash, bossRoar, bossDefeat, pause, menu
+// Names: jump, land, slash (sword swish), attack (her shout), hit, enemyDie,
+// hurt, die, coin, heal, buy, door, locked, fireball, windup, bossSlash,
+// bossRoar, bossDefeat, pause, menu
+//
+// Variants: attack.wav, attack2.wav, attack3.wav, ... are all loaded and one
+// is picked at random each time (never the same one twice in a row).
+//
+// The heroine's voice lines (VOICE_NAMES) share one "voice": a new line cuts
+// off the one still playing, like a real voice would.
+//
+// tools/make_sfx.py generates the current set of files.
 //
 // Until a file exists, a short synthesized placeholder blip plays instead, so
 // dropping in real audio never requires a code change. unlock() must be
 // called from a real user gesture or browsers keep audio suspended.
 export const SFX_NAMES = [
-  'jump', 'land', 'attack', 'hit', 'enemyDie', 'hurt', 'die', 'coin', 'heal', 'buy', 'door',
+  'jump', 'land', 'slash', 'attack', 'hit', 'enemyDie', 'hurt', 'die', 'coin', 'heal', 'buy', 'door',
   'locked', 'fireball', 'windup', 'bossSlash', 'bossRoar', 'bossDefeat', 'pause', 'menu',
 ];
-const EXTENSIONS = ['mp3', 'ogg', 'wav'];
+const EXTENSIONS = ['wav', 'mp3', 'ogg'];
+const MAX_VARIANTS = 8;
+const VOICE_NAMES = new Set(['attack', 'hurt', 'die']);
+// Minimum seconds between two plays of the same sound - stops rapid slashing
+// from turning her shout into a stutter.
+const MIN_GAP = { attack: 0.32 };
 
 const SYNTH = {
   jump: [{ type: 'square', f0: 330, f1: 660, d: 0.11, v: 0.08 }],
   land: [{ type: 'triangle', f0: 140, f1: 60, d: 0.07, v: 0.12 }],
-  attack: [{ type: 'noise', d: 0.09, v: 0.12, hp: 2400 }, { type: 'triangle', f0: 900, f1: 300, d: 0.08, v: 0.05 }],
+  slash: [{ type: 'noise', d: 0.09, v: 0.12, hp: 2400 }, { type: 'triangle', f0: 900, f1: 300, d: 0.08, v: 0.05 }],
   hit: [{ type: 'square', f0: 220, f1: 90, d: 0.09, v: 0.12 }, { type: 'noise', d: 0.06, v: 0.12 }],
   enemyDie: [{ type: 'square', f0: 400, f1: 60, d: 0.25, v: 0.1 }, { type: 'noise', d: 0.2, v: 0.1 }],
   hurt: [{ type: 'sawtooth', f0: 300, f1: 70, d: 0.22, v: 0.14 }],
@@ -43,7 +57,10 @@ export class Sfx {
     this.ctx = null;
     this.master = null;
     this.volume = volume;
-    this.buffers = new Map(); // name -> AudioBuffer (only for files that exist)
+    this.buffers = new Map(); // name -> [AudioBuffer, ...] (only for files that exist)
+    this.lastVariant = new Map();
+    this.lastPlayed = new Map();
+    this.voice = null; // the voice line currently playing
     this.noise = null;
     this.muted = false;
   }
@@ -61,18 +78,30 @@ export class Sfx {
     if (this.ctx.state === 'suspended') this.ctx.resume();
   }
 
+  async fetchBuffer(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return await this.ctx.decodeAudioData(await res.arrayBuffer());
+    } catch {
+      return null; // not there / not decodable
+    }
+  }
+
   async loadFiles() {
     await Promise.all(SFX_NAMES.map(async (name) => {
       for (const ext of EXTENSIONS) {
-        try {
-          const res = await fetch(`sfx/${name}.${ext}`);
-          if (!res.ok) continue;
-          const data = await res.arrayBuffer();
-          this.buffers.set(name, await this.ctx.decodeAudioData(data));
-          return;
-        } catch {
-          // not there / not decodable - try the next extension
+        const first = await this.fetchBuffer(`sfx/${name}.${ext}`);
+        if (!first) continue;
+        const list = [first];
+        // Numbered variants use the same extension as the base file.
+        for (let i = 2; i <= MAX_VARIANTS; i++) {
+          const more = await this.fetchBuffer(`sfx/${name}${i}.${ext}`);
+          if (!more) break;
+          list.push(more);
         }
+        this.buffers.set(name, list);
+        return;
       }
     }));
   }
@@ -84,12 +113,22 @@ export class Sfx {
 
   play(name) {
     if (!this.ctx || this.muted) return;
-    const buffer = this.buffers.get(name);
-    if (buffer) {
+    const now = this.ctx.currentTime;
+    if (MIN_GAP[name] && now - (this.lastPlayed.get(name) ?? -1) < MIN_GAP[name]) return;
+    this.lastPlayed.set(name, now);
+    const list = this.buffers.get(name);
+    if (list) {
+      let i = Math.floor(Math.random() * list.length);
+      if (list.length > 1 && i === this.lastVariant.get(name)) i = (i + 1) % list.length;
+      this.lastVariant.set(name, i);
       const src = this.ctx.createBufferSource();
-      src.buffer = buffer;
+      src.buffer = list[i];
       src.connect(this.master);
       src.start();
+      if (VOICE_NAMES.has(name)) {
+        try { this.voice?.stop(); } catch { /* already finished */ }
+        this.voice = src;
+      }
       return;
     }
     for (const voice of SYNTH[name] ?? []) this.synth(voice);

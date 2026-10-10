@@ -342,6 +342,7 @@ export class Game {
         fx.slash(player, {
           radius: 150, offsetX: 34, offsetY: player.h * 0.42, life: Math.max(6, player.attackActiveEnd - 1),
         });
+        this.sfx?.play('slash');
         this.sfx?.play('attack');
       } else if (ev === 'step' && Math.random() < 0.5) {
         fx.dust(player.centerX - player.facing * 20, player.bottom, 1, 0.4);
