@@ -19,10 +19,11 @@
 //
 // An item with `oneTime: true` can only ever be bought once per playthrough
 // (tracked in Game#purchasedOneTimeItems) - the shop UI shows "Owned" once
-// it's been bought.
+// it's been bought. `greeting` is the shopkeeper's line under the title.
 export const SHOPS = {
   general_store: {
     name: 'General Store',
+    greeting: 'Potions, elixirs, odds and ends. Gold only, please.',
     theme: { from: '#2b1d10', to: '#6b4a2a', accent: '#ffce54' },
     items: [
       { id: 'potion', kind: 'potion', label: 'Health Potion', description: 'Restore 50 HP', cost: 5, amount: 50 },
@@ -34,6 +35,7 @@ export const SHOPS = {
   },
   temple: {
     name: 'Temple of Vigor',
+    greeting: 'The spirits bless those who walk the long road.',
     theme: { from: '#0f1f2b', to: '#2a5a7a', accent: '#7fe0ff' },
     items: [
       {
@@ -49,6 +51,7 @@ export const SHOPS = {
   },
   blacksmith: {
     name: 'Blacksmith',
+    greeting: 'A dull blade is a dead traveler. Let me fix that.',
     theme: { from: '#1a1a1c', to: '#4a4440', accent: '#ff8a3d' },
     items: [
       { id: 'whetstone', kind: 'weapon', label: 'Whetstone', description: '+8 attack damage', cost: 18, amount: 8 },
@@ -61,6 +64,7 @@ export const SHOPS = {
   },
   mystic: {
     name: "Mystic's Hut",
+    greeting: 'Ah... I sensed you coming, swordswoman.',
     theme: { from: '#1c1030', to: '#4a2a70', accent: '#c9a8ff' },
     items: [
       { id: 'charm', kind: 'heart', label: 'Warding Charm', description: '+30 max HP', cost: 12, amount: 30 },

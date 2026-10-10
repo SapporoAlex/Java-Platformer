@@ -1,289 +1,396 @@
-import { loadImages } from './assets.js';
+import { loadImages, loadDeferred, buildArt } from './assets.js';
 import { Input } from './input.js';
 import { Game } from './game.js';
 import { Sfx } from './audio.js';
 import { MusicPlayer } from './music.js';
+import { outlineOf } from './sprite.js';
 import { LEVELS } from './levels-data.js';
-import { LEVEL_INTRO_SECONDS } from './constants.js';
+import { LEVEL_INTRO_SECONDS, TICKS_PER_SECOND } from './constants.js';
 
-const stage = document.getElementById('stage');
-const canvas = document.getElementById('game-canvas');
-const touchControls = document.getElementById('touch-controls');
-const pauseButton = document.getElementById('pause-button');
-const btnLeft = document.getElementById('btn-left');
-const btnRight = document.getElementById('btn-right');
-const btnJump = document.getElementById('btn-jump');
-const btnAttack = document.getElementById('btn-attack');
-const btnUp = document.getElementById('btn-up');
+const $ = (id) => document.getElementById(id);
+const stage = $('stage');
+const canvas = $('game-canvas');
+const touchControls = $('touch-controls');
+const pauseButton = $('pause-button');
+const muteButton = $('mute-button');
 
 const screens = {
-  start: document.getElementById('start-screen'),
-  levelintro: document.getElementById('levelintro-screen'),
-  gameover: document.getElementById('gameover-screen'),
-  levelcomplete: document.getElementById('levelcomplete-screen'),
-  shop: document.getElementById('shop-screen'),
-  gamecomplete: document.getElementById('gamecomplete-screen'),
-  paused: document.getElementById('paused-screen'),
+  start: $('start-screen'),
+  levelintro: $('levelintro-screen'),
+  gameover: $('gameover-screen'),
+  levelcomplete: $('levelcomplete-screen'),
+  shop: $('shop-screen'),
+  gamecomplete: $('gamecomplete-screen'),
+  paused: $('paused-screen'),
 };
 
-const startButton = document.getElementById('start-button');
-const restartGameButton = document.getElementById('restart-game-button');
-const gameoverMenuButton = document.getElementById('gameover-menu-button');
-const continueButton = document.getElementById('continue-button');
-const completeMenuButton = document.getElementById('complete-menu-button');
-const gameoverReason = document.getElementById('gameover-reason');
-const levelCompleteMessage = document.getElementById('levelcomplete-message');
+const SAVE_KEY = 'monsterland.progress';
+const MUTE_KEY = 'monsterland.muted';
 
-const introLivesLostEl = document.getElementById('intro-lives-lost');
-const introLevelNumberEl = document.getElementById('intro-level-number');
-const introLevelNameEl = document.getElementById('intro-level-name');
-const introHealthFillEl = document.getElementById('intro-health-fill');
-const introLivesCountEl = document.getElementById('intro-lives-count');
+function readSave() {
+  try {
+    return JSON.parse(localStorage.getItem(SAVE_KEY)) ?? {};
+  } catch {
+    return {};
+  }
+}
 
-const shopPanel = document.getElementById('shop-panel');
-const shopTitle = document.getElementById('shop-title');
-const shopGoldEl = document.getElementById('shop-gold');
-const shopItemsEl = document.getElementById('shop-items');
-const shopExitButton = document.getElementById('shop-exit-button');
-
-const gamecompleteMenuButton = document.getElementById('gamecomplete-menu-button');
-const finalScoreEl = document.getElementById('final-score');
-const finalGoldEl = document.getElementById('final-gold');
-
-const resumeButton = document.getElementById('resume-button');
-const pausedMenuButton = document.getElementById('paused-menu-button');
+function writeSave(data) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ ...readSave(), ...data }));
+  } catch {
+    // storage unavailable (private mode etc.) - progress just won't persist
+  }
+}
 
 function showScreen(name) {
-  for (const key of Object.keys(screens)) {
-    screens[key].classList.toggle('hidden', key !== name);
-  }
+  for (const [key, el] of Object.entries(screens)) el.classList.toggle('hidden', key !== name);
 }
 
-function renderShopScreen(game) {
-  const shop = game.currentShop();
-  if (!shop) return;
-
-  shopPanel.style.setProperty('--shop-from', shop.theme.from);
-  shopPanel.style.setProperty('--shop-to', shop.theme.to);
-  shopPanel.style.setProperty('--shop-accent', shop.theme.accent);
-  shopTitle.textContent = shop.name;
-  shopGoldEl.textContent = game.gold;
-
-  shopItemsEl.innerHTML = '';
-  for (const item of shop.items) {
-    const row = document.createElement('div');
-    row.className = 'shop-item';
-
-    const info = document.createElement('div');
-    info.className = 'shop-item-info';
-    info.innerHTML = `<div class="name">${item.label} - ${item.cost}g</div><div class="desc">${item.description}</div>`;
-
-    const owned = item.oneTime && game.purchasedOneTimeItems.has(item.id);
-    const buyButton = document.createElement('button');
-    buyButton.className = 'buy-btn';
-    buyButton.textContent = owned ? 'Owned' : 'Buy';
-    buyButton.disabled = owned || game.gold < item.cost;
-    buyButton.addEventListener('click', () => {
-      game.buyItem(item.id);
-      renderShopScreen(game); // refresh gold + afford-state after purchase
-    });
-
-    row.append(info, buyButton);
-    shopItemsEl.appendChild(row);
-  }
+// Focus the first usable button on a screen so keyboard/gamepad players can
+// act on it immediately.
+function focusFirst(screenEl) {
+  const btn = [...screenEl.querySelectorAll('button')].find((b) => !b.disabled && b.offsetParent !== null);
+  btn?.focus({ preventScroll: true });
 }
 
-// Populates and (re)starts the black level-intro screen: level number/name,
-// lives, life-lost message, and a health bar that visually fills from
-// wherever it was (introFromHealth/introFromMax) up to full over the same
-// duration the game auto-advances after (LEVEL_INTRO_SECONDS).
-function renderLevelIntroScreen(game) {
-  const levelData = LEVELS[game.levelIndex];
-  introLevelNumberEl.textContent = `Level ${game.levelIndex + 1}`;
-  introLevelNameEl.textContent = levelData.name;
-  introLivesLostEl.classList.toggle('hidden', !game.introRespawn);
-  introLivesCountEl.textContent = `Lives: ${game.lives}`;
-
-  const fromPct = Math.max(0, Math.min(100, (game.introFromHealth / game.introFromMax) * 100));
-  introHealthFillEl.style.transition = 'none';
-  introHealthFillEl.style.width = `${fromPct}%`;
-  void introHealthFillEl.offsetWidth; // force reflow so the transition below starts from fromPct, not 100%
-  introHealthFillEl.style.transition = `width ${LEVEL_INTRO_SECONDS}s linear`;
-  requestAnimationFrame(() => {
-    introHealthFillEl.style.width = '100%';
-  });
+function menuButtons(screenEl) {
+  return [...screenEl.querySelectorAll('button')].filter((b) => !b.disabled && b.offsetParent !== null);
 }
 
-// Fills the viewport with the stage (2400x1800 internally, see CANVAS_WIDTH/
-// CANVAS_HEIGHT in constants.js - same 4:3 ratio as the original 800x600, just
-// a higher internal render resolution) at the largest size that keeps its
-// aspect ratio - a plain CSS aspect-ratio box only adapts to whichever
-// dimension is unconstrained, but on a short landscape phone screen it's the
-// *height* that's tight, so this has to be computed in JS.
+function moveFocus(screenEl, delta) {
+  const list = menuButtons(screenEl);
+  if (!list.length) return;
+  const i = list.indexOf(document.activeElement);
+  const next = i < 0 ? 0 : (i + delta + list.length) % list.length;
+  list[next].focus({ preventScroll: true });
+}
+
+// The 1920x1080 canvas is scaled to the largest 16:9 box that fits the window.
 function fitStage() {
-  const targetRatio = 4 / 3;
-  const availW = window.innerWidth;
-  const availH = window.innerHeight;
+  const pad = document.body.classList.contains('is-touch') ? 0 : 24;
+  const availW = window.innerWidth - pad;
+  const availH = window.innerHeight - pad;
   let w = availW;
-  let h = w / targetRatio;
+  let h = (w * 9) / 16;
   if (h > availH) {
     h = availH;
-    w = h * targetRatio;
+    w = (h * 16) / 9;
   }
-  stage.style.width = `${w}px`;
-  stage.style.height = `${h}px`;
+  stage.style.width = `${Math.floor(w)}px`;
+  stage.style.height = `${Math.floor(h)}px`;
+  stage.style.setProperty('--stage-h', `${Math.floor(h)}px`);
 }
 
-// Touch buttons feed the same Input the keyboard does, via simulateDown/Up,
-// so gameplay code never needs to know which input source is active.
-function bindHoldButton(el, code, input) {
+function bindHoldButton(el, action, input) {
   const press = (e) => {
     e.preventDefault();
     el.classList.add('pressed');
-    input.simulateDown(code);
+    input.simulateDown(action);
   };
   const release = (e) => {
     e.preventDefault();
     el.classList.remove('pressed');
-    input.simulateUp(code);
+    input.simulateUp(action);
   };
-  el.addEventListener('touchstart', press, { passive: false });
-  el.addEventListener('touchend', release);
-  el.addEventListener('touchcancel', release);
-  el.addEventListener('mousedown', press);
-  el.addEventListener('mouseup', release);
-  el.addEventListener('mouseleave', release);
+  el.addEventListener('pointerdown', press);
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+  el.addEventListener('pointerleave', release);
+}
+
+function renderShopScreen(game, keepFocusId = null) {
+  const shop = game.currentShop();
+  if (!shop) return;
+  const panel = $('shop-panel');
+  panel.style.setProperty('--shop-accent', shop.theme.accent);
+  $('shop-title').textContent = shop.name;
+  $('shop-greeting').textContent = shop.greeting ?? 'Welcome, traveler.';
+  $('shop-gold').textContent = game.gold;
+  const p = game.player;
+  $('shop-stats').textContent = `♥ ${Math.ceil(p.health)}/${p.maxHealth}   ⚔ ${p.attackStrength}`;
+
+  const list = $('shop-items');
+  list.innerHTML = '';
+  for (const item of shop.items) {
+    const owned = item.oneTime && game.purchasedOneTimeItems.has(item.id);
+    const row = document.createElement('div');
+    row.className = `shop-item${owned ? ' owned' : ''}`;
+    const info = document.createElement('div');
+    info.className = 'shop-item-info';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = item.label;
+    const desc = document.createElement('div');
+    desc.className = 'desc';
+    desc.textContent = item.description + (item.oneTime ? ' (one per journey)' : '');
+    info.append(name, desc);
+
+    const price = document.createElement('span');
+    price.className = 'price';
+    price.innerHTML = '<span class="coin-icon"></span>';
+    price.append(String(item.cost));
+
+    const buy = document.createElement('button');
+    buy.className = 'btn';
+    buy.id = `buy-${item.id}`;
+    buy.textContent = owned ? 'Owned' : 'Buy';
+    buy.disabled = owned || game.gold < item.cost;
+    buy.addEventListener('click', () => {
+      const result = game.buyItem(item.id);
+      const msg = $('shop-message');
+      const reasons = {
+        'not-enough-gold': 'Not enough gold.',
+        'already-owned': 'You already own that.',
+        'full-health': "You're already at full health.",
+      };
+      msg.textContent = result.ok ? `Bought ${item.label}!` : reasons[result.reason] ?? '…';
+      msg.classList.toggle('ok', result.ok);
+      renderShopScreen(game, buy.id);
+    });
+    row.append(info, price, buy);
+    list.appendChild(row);
+  }
+
+  const keep = keepFocusId && $(keepFocusId);
+  if (keep && !keep.disabled) keep.focus({ preventScroll: true });
+  else if (keepFocusId) focusFirst(screens.shop);
+}
+
+function renderLevelIntroScreen(game) {
+  const levelData = LEVELS[game.levelIndex];
+  $('intro-level-number').textContent = `STAGE ${game.levelIndex + 1}`;
+  $('intro-level-name').textContent = levelData.name;
+  $('intro-lives-lost').classList.toggle('hidden', !game.introRespawn);
+  $('intro-lives-count').textContent = `× ${game.lives}`;
+
+  const fill = $('intro-health-fill');
+  const fromPct = Math.max(0, Math.min(100, (game.introFromHealth / game.introFromMax) * 100));
+  fill.style.transition = 'none';
+  fill.style.width = `${fromPct}%`;
+  void fill.offsetWidth; // restart the transition from fromPct
+  fill.style.transition = `width ${LEVEL_INTRO_SECONDS * 0.8}s ease-out`;
+  requestAnimationFrame(() => {
+    fill.style.width = '100%';
+  });
 }
 
 async function boot() {
-  startButton.disabled = true;
-  startButton.textContent = 'Loading...';
-  const images = await loadImages();
-  startButton.disabled = false;
-  startButton.textContent = 'Start Game';
+  const pct = $('loading-pct');
+  const images = await loadImages((done, total) => {
+    pct.textContent = `${Math.round((done / total) * 100)}%`;
+  });
+  const art = buildArt(images);
+  // Build the outlined copies of every character frame up front, so the
+  // first time an enemy appears doesn't hitch.
+  const characterSets = [
+    art.player.idle, art.player.run, art.player.jump, art.player.attack, art.oni.walk, art.ghost.fly,
+    ...Object.values(art.boss).flatMap((b) => [b.stand, b.move, b.jump, b.attack, b.death]),
+  ];
+  for (const set of characterSets) {
+    for (const img of [...(set?.right ?? []), ...(set?.left ?? [])]) outlineOf(img);
+  }
+  // Don't hold the game hostage to a slow font CDN; the canvas falls back to
+  // a system serif until it arrives.
+  await Promise.race([
+    document.fonts?.load('800 40px "Shippori Mincho B1"').catch(() => {}),
+    new Promise((r) => { setTimeout(r, 1500); }),
+  ]);
+  loadDeferred(images, art);
+  $('loading-screen').classList.add('hidden');
 
   const sfx = new Sfx();
   const music = new MusicPlayer();
-  const game = new Game(canvas, images, sfx, music);
+  const game = new Game(canvas, images, art, sfx, music);
   const input = new Input(window);
   window.game = game; // handy for console debugging
-  let lastState = 'start';
+  window.input = input;
 
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  document.body.classList.toggle('is-touch', isTouchDevice);
+  const isTouch = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  document.body.classList.toggle('is-touch', isTouch);
   fitStage();
   window.addEventListener('resize', fitStage);
   window.addEventListener('orientationchange', fitStage);
 
-  bindHoldButton(btnLeft, 'ArrowLeft', input);
-  bindHoldButton(btnRight, 'ArrowRight', input);
-  bindHoldButton(btnJump, 'KeyA', input);
-  bindHoldButton(btnAttack, 'Space', input);
-  bindHoldButton(btnUp, 'ArrowUp', input);
+  bindHoldButton($('btn-left'), 'left', input);
+  bindHoldButton($('btn-right'), 'right', input);
+  bindHoldButton($('btn-jump'), 'jump', input);
+  bindHoldButton($('btn-attack'), 'attack', input);
+  bindHoldButton($('btn-up'), 'up', input);
 
-  // Audio can't play at all until some real user gesture happens - the Start
-  // button covers the common case, but this also unlocks (and starts title
-  // music) on the very first tap/click/keypress anywhere, in case that
-  // happens before Start is pressed.
+  // --- sound ---
+  let muted = false;
+  try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch { /* ignore */ }
+  const applyMute = () => {
+    sfx.setMuted(muted);
+    music.setMuted(muted);
+    muteButton.classList.toggle('off', muted);
+    muteButton.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+  };
+  const toggleMute = () => {
+    muted = !muted;
+    try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch { /* ignore */ }
+    applyMute();
+  };
+  applyMute();
+  muteButton.addEventListener('click', () => { toggleMute(); muteButton.blur(); });
+
   const unlockAudio = () => { sfx.unlock(); music.unlock(); };
   document.addEventListener('pointerdown', unlockAudio, { once: true });
   document.addEventListener('keydown', unlockAudio, { once: true });
   music.playTitle();
 
-  startButton.addEventListener('click', () => {
+  // --- menu buttons ---
+  const updateContinueButton = () => {
+    const { level = 0 } = readSave();
+    const btn = $('continue-from-button');
+    btn.classList.toggle('hidden', level <= 0);
+    btn.textContent = `Continue — Stage ${level + 1}`;
+  };
+  updateContinueButton();
+
+  const toTitle = () => { game.state = 'start'; };
+  $('start-button').addEventListener('click', () => { unlockAudio(); game.startNewGame(0); });
+  $('continue-from-button').addEventListener('click', () => {
     unlockAudio();
-    game.startNewGame();
+    game.startNewGame(Math.min(readSave().level ?? 0, LEVELS.length - 1));
   });
-  restartGameButton.addEventListener('click', () => {
-    game.startNewGame();
-  });
-  gameoverMenuButton.addEventListener('click', () => {
-    game.state = 'start';
-  });
-  continueButton.addEventListener('click', () => {
-    game.advanceToNextLevel();
-  });
-  completeMenuButton.addEventListener('click', () => {
-    game.state = 'start';
-  });
-  shopExitButton.addEventListener('click', () => {
-    game.exitShop();
-  });
-  gamecompleteMenuButton.addEventListener('click', () => {
-    game.state = 'start';
-  });
-  pauseButton.addEventListener('click', () => {
-    game.pause();
-  });
-  resumeButton.addEventListener('click', () => {
-    game.resume();
-  });
-  pausedMenuButton.addEventListener('click', () => {
-    game.state = 'start';
-  });
+  $('restart-game-button').addEventListener('click', () => game.startNewGame(0));
+  $('gameover-continue-button').addEventListener('click', () => game.continueGame());
+  $('gameover-menu-button').addEventListener('click', toTitle);
+  $('continue-button').addEventListener('click', () => game.advanceToNextLevel());
+  $('complete-menu-button').addEventListener('click', toTitle);
+  $('shop-exit-button').addEventListener('click', () => game.exitShop());
+  $('gamecomplete-menu-button').addEventListener('click', toTitle);
+  pauseButton.addEventListener('click', () => { game.pause(); pauseButton.blur(); });
+  $('resume-button').addEventListener('click', () => game.resume());
+  $('restart-level-button').addEventListener('click', () => game.enterLevelIntro(game.levelIndex, { respawn: false }));
+  $('paused-menu-button').addEventListener('click', toTitle);
+
+  // Menu keyboard navigation (arrows move, Enter/Space/Z/X select, Esc backs out of the shop).
   document.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape' && !e.repeat) game.togglePause();
+    if (e.code === 'KeyM' && !e.repeat) toggleMute();
+    if (e.code === 'Backquote') game.showHitboxes = !game.showHitboxes;
+    const screenEl = screens[game.state];
+    if (!screenEl || game.state === 'levelintro') return;
+    if (['ArrowDown', 'ArrowRight', 'KeyS', 'KeyD'].includes(e.code)) {
+      e.preventDefault();
+      moveFocus(screenEl, 1);
+      sfx.play('menu');
+    } else if (['ArrowUp', 'ArrowLeft', 'KeyW', 'KeyA'].includes(e.code)) {
+      e.preventDefault();
+      moveFocus(screenEl, -1);
+      sfx.play('menu');
+    } else if (['KeyZ', 'KeyX', 'KeyJ', 'KeyK'].includes(e.code) && !e.repeat) {
+      if (document.activeElement?.tagName === 'BUTTON' && screenEl.contains(document.activeElement)) {
+        document.activeElement.click();
+      } else {
+        focusFirst(screenEl);
+      }
+    } else if (e.code === 'Escape' || e.code === 'KeyP') {
+      if (game.state === 'shop') game.exitShop();
+      else if (game.state === 'paused') game.resume();
+    }
   });
 
+  // Gamepad equivalents of the above, edge-triggered.
+  let prevPad = new Set();
+  function pollMenuGamepad() {
+    const pad = input.padDown;
+    const pressed = (a) => pad.has(a) && !prevPad.has(a);
+    const screenEl = screens[game.state];
+    if (screenEl && game.state !== 'levelintro') {
+      if (pressed('down') || pressed('right')) moveFocus(screenEl, 1);
+      if (pressed('up') || pressed('left')) moveFocus(screenEl, -1);
+      if (pressed('jump')) {
+        if (screenEl.contains(document.activeElement)) document.activeElement.click();
+        else focusFirst(screenEl);
+      }
+      if (pressed('attack') && game.state === 'shop') game.exitShop();
+    }
+    prevPad = new Set(pad);
+  }
+
+  let lastState = null;
   function syncScreenToState() {
     if (game.state === lastState) return;
+    const prev = lastState;
     lastState = game.state;
-    showScreen(game.state === 'playing' ? null : game.state);
+    const overlay = screens[game.state] ? game.state : null;
+    showScreen(overlay);
+    // Let the browser handle keys normally while a menu has focus.
+    input.captureKeys = !overlay || game.state === 'levelintro';
+    if (overlay && overlay !== 'levelintro') input.reset();
+    if (!overlay) document.activeElement?.blur?.();
 
-    if (game.state === 'start') {
-      music.playTitle();
+    switch (game.state) {
+      case 'start':
+        updateContinueButton();
+        if (prev) music.playTitle();
+        break;
+      case 'levelintro':
+        renderLevelIntroScreen(game);
+        writeSave({ level: Math.max(readSave().level ?? 0, game.levelIndex) });
+        break;
+      case 'gameover':
+        $('gameover-reason').textContent = game.deathCause === 'fall'
+          ? 'You fell into the abyss with no lives left.'
+          : 'The yokai overwhelmed you.';
+        break;
+      case 'levelcomplete':
+        $('levelcomplete-message').textContent = `${LEVELS[game.levelIndex].name} is safe again.`;
+        $('stage-gold').textContent = game.levelGold;
+        $('stage-kills').textContent = game.levelKills;
+        writeSave({ level: Math.max(readSave().level ?? 0, game.levelIndex + 1) });
+        break;
+      case 'shop':
+        $('shop-message').innerHTML = '&nbsp;';
+        renderShopScreen(game);
+        break;
+      case 'gamecomplete':
+        $('final-score').textContent = game.finalScore();
+        $('final-gold').textContent = game.totalGoldEarned;
+        music.playVictory();
+        break;
+      default:
+        break;
     }
-    if (game.state === 'levelintro') {
-      renderLevelIntroScreen(game);
-    }
-    if (game.state === 'gameover') {
-      const died = game.player.health <= 0;
-      gameoverReason.textContent = died
-        ? 'You ran out of health, and used up all your lives.'
-        : 'You fell off the level, and used up all your lives.';
-    }
-    if (game.state === 'levelcomplete') {
-      const hasNext = game.hasNextLevel();
-      continueButton.classList.toggle('hidden', !hasNext);
-      levelCompleteMessage.textContent = hasNext
-        ? `${LEVELS[game.levelIndex].name} cleared!`
-        : `${LEVELS[game.levelIndex].name} cleared! More levels coming soon.`;
-    }
-    if (game.state === 'shop') {
-      renderShopScreen(game);
-    }
-    if (game.state === 'gamecomplete') {
-      finalScoreEl.textContent = game.finalScore();
-      finalGoldEl.textContent = game.totalGoldEarned;
-      music.playVictory();
-    }
+    if (overlay && overlay !== 'levelintro') focusFirst(screens[overlay]);
   }
 
-  function tick() {
-    game.update(input);
+  // Fixed-timestep loop: the simulation always runs at 60 ticks/second
+  // regardless of the display's refresh rate; rendering happens once per frame.
+  const STEP = 1000 / TICKS_PER_SECOND;
+  let last = performance.now();
+  let acc = 0;
+  function frame(now) {
+    acc += Math.min(200, now - last);
+    last = now;
+    while (acc >= STEP) {
+      input.update();
+      pollMenuGamepad();
+      game.update(input);
+      syncScreenToState();
+      acc -= STEP;
+    }
     game.render();
-    syncScreenToState();
-    pauseButton.classList.toggle('hidden', game.state !== 'playing');
-    if (isTouchDevice) {
-      touchControls.classList.toggle('hidden', game.state !== 'playing');
-      btnUp.classList.toggle('hidden', !game.activeDoor);
+    const playing = game.state === 'playing';
+    pauseButton.classList.toggle('hidden', !playing);
+    if (isTouch) {
+      touchControls.classList.toggle('hidden', !playing);
+      $('btn-up').classList.toggle('hidden', !game.activeDoor);
     }
-    input.endFrame();
-    requestAnimationFrame(tick);
+    requestAnimationFrame(frame);
   }
-
-  requestAnimationFrame(tick);
+  requestAnimationFrame(frame);
 }
 
 boot().catch((err) => {
   console.error(err);
-  document.body.innerHTML = `<pre style="color:#f88;padding:20px;">Failed to load game assets:\n${err.message}</pre>`;
+  document.body.innerHTML = `<pre style="color:#f88;padding:20px;">Failed to start the game:\n${err.message}</pre>`;
 });
 
-// Registering this is what makes the game installable as a PWA (alongside
-// manifest.webmanifest) - it also lets the app shell load without a network
-// round-trip once it's been opened once.
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((err) => console.error('SW registration failed:', err));
   });

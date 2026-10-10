@@ -1,17 +1,17 @@
 // Background music, driven entirely by file naming convention under
-// web/music/ - none of these files exist yet; everything here is written to
+// music/ - none of these files exist yet; everything here is written to
 // fail silently (no thrown errors, no broken game) until they're added, then
 // just start working. Drop in:
 //
-//   web/music/title.mp3      - start screen
-//   web/music/level1.mp3     - level 1's looping bg music
-//   web/music/level2.mp3     - level 2's, and so on for every level (see
+//   music/title.mp3        - start screen
+//   music/level1.mp3       - level 1's looping bg music
+//   music/level2.mp3       - level 2's, and so on for every level (see
 //                               LEVELS in levels-data.js - "level" + the
 //                               level's 1-based number)
-//   web/music/boss.mp3       - boss music for a boss using assetPrefix 'boss'
-//   web/music/boss2.mp3      - ...assetPrefix 'boss2' (Fortress Approach)
-//   web/music/boss3.mp3      - ...assetPrefix 'boss3' (the final boss)
-//   web/music/victory.mp3    - the "You Win!" end screen
+//   music/boss.mp3         - boss music for a boss using assetPrefix 'boss'
+//   music/boss2.mp3        - ...assetPrefix 'boss2' (Fortress Approach)
+//   music/boss3.mp3        - ...assetPrefix 'boss3' (the final boss)
+//   music/victory.mp3      - the "You Win!" end screen
 //
 // Boss tracks are matched by the same `assetPrefix` each boss already uses
 // for its sprite set (see the `boss` field in levels-data.js), so adding a
@@ -31,6 +31,12 @@ export class MusicPlayer {
     this.levelNumber = null;
     this.bossTrackSrc = null;
     this.bossActive = false;
+    this.muted = false;
+  }
+
+  setMuted(muted) {
+    this.muted = muted;
+    if (this.current?.audio) this.current.audio.muted = muted;
   }
 
   // Must be called from inside a real user-gesture event handler (a click or
@@ -93,6 +99,7 @@ export class MusicPlayer {
       const audio = new Audio(src);
       audio.loop = true;
       audio.volume = 0;
+      audio.muted = this.muted;
       audio.addEventListener('error', () => {
         // Expected until this specific mp3 has been added - just stay silent.
       });

@@ -1,167 +1,246 @@
-import { Sprite } from './sprite.js';
-import { Coin, Enemy, Door, BossEnemy, FireEnemy, SwoopEnemy } from './entities.js';
-import {
-  SPRITE_SIZE, SPRITE_SCALE, SOLID_TILES, DECORATIVE_TILES, TILE_IMAGE_KEYS, GROUND_LEVEL,
-  CANVAS_WIDTH, CANVAS_HEIGHT,
-} from './constants.js';
+import { TILE } from './constants.js';
 
-// Builds the runtime level (platforms/passableTiles/coins/enemies/doors/boss)
-// from a LEVELS[] data entry, mirroring createPlatforms() in wonderBoy.pde.
+// ---------------------------------------------------------------------------
+// Tile legend for the ASCII maps in levels-data.js.
+//
+// Terrain (each maps to a tile image 1-10, see README.md):
+//   #  ground (1.png)            solid
+//   =  sand ground (9.png)       solid
+//   :  packed earth/foundation (10.png) solid
+//   %  stone block (5.png)       solid
+//   -  shrine beam (4.png)       jump-through: land on it from above, jump
+//                                up through it from below, Down+Jump drops
+//   _  wooden plank (3.png)      jump-through
+//   ^  bamboo spikes             hazard: hurts and bounces the player
+//
+// Things (the cell itself is empty space):
+//   P  player start (feet on the bottom of this cell)
+//   c  coin                      h  heart (restores health)
+//   o  oni (walks, turns at walls and ledges, charges when it sees you)
+//   g  ghost (floats, swoops at you)
+//   l  haunted lantern (spits fireballs while on screen)
+//   E  exit door (bottom of door = bottom of this cell; 2 tiles tall)
+//   S  shop door (uses the level's `shops` list, in left-to-right order)
+//   B  boss spawn                [  left wall of the boss arena
+// ---------------------------------------------------------------------------
+export const TERRAIN = {
+  '#': { tile: 1, kind: 'solid', style: 'earth' },
+  '=': { tile: 9, kind: 'solid', style: 'sand' },
+  ':': { tile: 10, kind: 'solid', style: 'earth' },
+  '%': { tile: 5, kind: 'solid', style: 'stone' },
+  '-': { tile: 4, kind: 'oneway', style: 'beam' },
+  _: { tile: 3, kind: 'oneway', style: 'plank' },
+  '^': { tile: 0, kind: 'hazard', style: 'spikes' },
+};
+
+const ONEWAY_THICKNESS = 40; // only the top sliver of a jump-through tile is drawn
+const SPIKE_HEIGHT = 70; // only the bottom part of a spike tile hurts
+
 export class Level {
-  constructor(data, images) {
+  constructor(data) {
     this.data = data;
-    this.images = images;
-    this.platforms = [];
-    this.passableTiles = [];
-    this.coins = [];
-    this.enemies = [];
-    this.fireEnemies = [];
-    this.swoopEnemies = [];
-    this.fireballs = [];
-    this.doors = [];
-    this.boss = null;
+    const rows = data.map.map((r) => r.replace(/\s+$/, ''));
+    this.rows = rows.length;
+    this.cols = Math.max(...rows.map((r) => r.length));
+    this.widthPx = this.cols * TILE;
+    this.heightPx = this.rows * TILE;
+    this.grid = rows.map((r) => r.padEnd(this.cols, ' ').split(''));
+    this.spawns = [];
+    this.arenaLeft = null;
 
-    const rows = data.tiles.length;
-    const cols = data.tiles[0].length;
-    this.widthPx = cols * SPRITE_SIZE;
-    this.heightPx = rows * SPRITE_SIZE;
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const code = data.tiles[row][col];
-        if (code === 0) continue;
-        const imageKey = TILE_IMAGE_KEYS[code];
-        if (!imageKey) continue;
-        const sprite = new Sprite(images[imageKey], SPRITE_SCALE);
-        sprite.centerX = SPRITE_SIZE / 2 + col * SPRITE_SIZE;
-        sprite.centerY = SPRITE_SIZE / 2 + row * SPRITE_SIZE;
-        if (SOLID_TILES.has(code)) this.platforms.push(sprite);
-        else if (DECORATIVE_TILES.has(code)) this.passableTiles.push(sprite);
+    let shopIndex = 0;
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const ch = this.grid[row][col];
+        if (TERRAIN[ch]) continue;
+        if (ch === '[') {
+          this.arenaLeft = col * TILE;
+        } else if (ch !== ' ' && ch !== '.') {
+          const spawn = { type: ch, col, row, x: col * TILE + TILE / 2, feetY: (row + 1) * TILE };
+          if (ch === 'S') spawn.shopId = data.shops?.[shopIndex++];
+          this.spawns.push(spawn);
+        }
+        this.grid[row][col] = TERRAIN[ch] ? ch : ' ';
       }
     }
+  }
 
-    for (const c of data.coins) {
-      const coin = new Coin(images);
-      coin.centerX = SPRITE_SIZE / 2 + c.col * SPRITE_SIZE;
-      coin.centerY = SPRITE_SIZE / 2 + c.row * SPRITE_SIZE;
-      this.coins.push(coin);
+  charAt(col, row) {
+    if (row < 0 || row >= this.rows) return ' ';
+    if (col < 0 || col >= this.cols) return '%'; // level edges are walls
+    return this.grid[row][col];
+  }
+
+  terrainAt(col, row) {
+    return TERRAIN[this.charAt(col, row)] ?? null;
+  }
+
+  isSolid(col, row) {
+    return this.terrainAt(col, row)?.kind === 'solid';
+  }
+
+  // --- Collision ------------------------------------------------------------
+  //
+  // Moves `e` by (vx, vy), one axis at a time, against the tile grid. Every
+  // tile the moving edge sweeps across is checked, so nothing can tunnel
+  // through a tile however fast it's going. Sets e.onGround / e.hitWall /
+  // e.hitCeiling. `opts.dropThrough` ignores jump-through tiles this tick.
+  moveEntity(e, opts = {}) {
+    e.hitWall = 0;
+    e.hitCeiling = false;
+    const wasOnGround = e.onGround;
+    e.onGround = false;
+
+    // Horizontal
+    if (e.vx !== 0) {
+      const top = Math.floor(e.y / TILE);
+      const bottom = Math.floor((e.y + e.h - 0.01) / TILE);
+      if (e.vx > 0) {
+        const from = Math.floor((e.x + e.w) / TILE);
+        const to = Math.floor((e.x + e.w + e.vx - 0.01) / TILE);
+        let target = e.x + e.vx;
+        for (let col = from; col <= to; col++) {
+          if (this.columnBlocked(col, top, bottom)) {
+            target = Math.min(target, col * TILE - e.w);
+            e.hitWall = 1;
+            break;
+          }
+        }
+        e.x = target;
+      } else {
+        const from = Math.floor((e.x - 0.01) / TILE);
+        const to = Math.floor((e.x + e.vx) / TILE);
+        let target = e.x + e.vx;
+        for (let col = from; col >= to; col--) {
+          if (this.columnBlocked(col, top, bottom)) {
+            target = Math.max(target, (col + 1) * TILE);
+            e.hitWall = -1;
+            break;
+          }
+        }
+        e.x = target;
+      }
+      if (e.hitWall) e.vx = 0;
     }
 
-    for (const e of data.enemies) {
-      const boundaryLeft = e.col * SPRITE_SIZE;
-      const boundaryRight = boundaryLeft + e.rangeTiles * SPRITE_SIZE;
-      const enemy = new Enemy(images, boundaryLeft, boundaryRight);
-      enemy.centerX = SPRITE_SIZE / 2 + e.col * SPRITE_SIZE;
-      // Ground-anchored (feet on top of the row directly below `e.row` - the
-      // level-design convention every enemy placement already follows) so
-      // the enemy's own sprite height - now matching the player's 200x250,
-      // not just a scaled-up spider - stands correctly instead of sinking
-      // into (or floating above) the ground.
-      enemy.setBottom((e.row + 1) * SPRITE_SIZE);
-      this.enemies.push(enemy);
-    }
-
-    for (const f of data.fireEnemies ?? []) {
-      const fireEnemy = new FireEnemy(images);
-      fireEnemy.centerX = SPRITE_SIZE / 2 + f.col * SPRITE_SIZE;
-      fireEnemy.centerY = SPRITE_SIZE / 2 + f.row * SPRITE_SIZE;
-      this.fireEnemies.push(fireEnemy);
-    }
-
-    for (const s of data.swoopEnemies ?? []) {
-      const boundaryLeft = s.col * SPRITE_SIZE;
-      const boundaryRight = boundaryLeft + s.rangeTiles * SPRITE_SIZE;
-      const homeY = SPRITE_SIZE / 2 + s.row * SPRITE_SIZE;
-      const swoopEnemy = new SwoopEnemy(images, boundaryLeft, boundaryRight, homeY);
-      swoopEnemy.centerX = SPRITE_SIZE / 2 + s.col * SPRITE_SIZE;
-      swoopEnemy.centerY = homeY;
-      this.swoopEnemies.push(swoopEnemy);
-    }
-
-    for (const d of data.doors) {
-      const image = d.kind === 'shop' ? images.doorShop : images.doorExit;
-      this.doors.push(new Door(d.col, d.row, d.kind, image, d.shopId ?? null));
-    }
-
-    if (data.boss) {
-      const boundaryLeft = data.boss.col * SPRITE_SIZE;
-      const boundaryRight = boundaryLeft + data.boss.rangeTiles * SPRITE_SIZE;
-      const boss = new BossEnemy(images, boundaryLeft, boundaryRight, {
-        health: data.boss.health,
-        attackStrength: data.boss.attackStrength,
-        assetPrefix: data.boss.assetPrefix,
-        fireballIntervalTicks: data.boss.fireballIntervalTicks,
-        fireballIntervalMinTicks: data.boss.fireballIntervalMinTicks,
-        fireballIntervalMaxTicks: data.boss.fireballIntervalMaxTicks,
-        fireballOrigins: data.boss.fireballOrigins,
-      });
-      boss.centerX = boundaryLeft + boss.w / 2;
-      boss.setBottom(GROUND_LEVEL - SPRITE_SIZE); // stand on the walkway (row 10's top)
-      this.boss = boss;
+    // Vertical
+    const left = Math.floor(e.x / TILE);
+    const right = Math.floor((e.x + e.w - 0.01) / TILE);
+    if (e.vy > 0) {
+      const prevBottom = e.y + e.h;
+      const from = Math.floor(prevBottom / TILE);
+      const to = Math.floor((prevBottom + e.vy - 0.01) / TILE);
+      let target = e.y + e.vy;
+      for (let row = from; row <= to; row++) {
+        const rowTop = row * TILE;
+        if (this.rowBlocked(row, left, right, prevBottom <= rowTop + 0.01 && !opts.dropThrough)) {
+          target = Math.min(target, rowTop - e.h);
+          e.onGround = true;
+          break;
+        }
+      }
+      e.y = target;
+      if (e.onGround) e.vy = 0;
+    } else if (e.vy < 0) {
+      const from = Math.floor((e.y - 0.01) / TILE);
+      const to = Math.floor((e.y + e.vy) / TILE);
+      let target = e.y + e.vy;
+      for (let row = from; row >= to; row--) {
+        if (this.rowBlocked(row, left, right, false)) {
+          // Corner correction: clipping a ledge by a few pixels while jumping
+          // nudges you around it instead of stopping the jump dead.
+          if (opts.cornerCorrect && this.tryCornerNudge(e, row)) break;
+          target = Math.max(target, (row + 1) * TILE);
+          e.hitCeiling = true;
+          break;
+        }
+      }
+      e.y = target;
+      if (e.hitCeiling) e.vy = 0;
+    } else if (wasOnGround) {
+      // Standing still: re-check the floor so walking off a ledge registers.
+      e.onGround = this.hasFloor(e, opts.dropThrough);
     }
   }
 
-  totalCoins() {
-    return this.data.coins.length;
+  columnBlocked(col, rowTop, rowBottom) {
+    for (let row = rowTop; row <= rowBottom; row++) {
+      if (this.isSolid(col, row)) return true;
+    }
+    return false;
+  }
+
+  rowBlocked(row, colLeft, colRight, allowOneway) {
+    for (let col = colLeft; col <= colRight; col++) {
+      const t = this.terrainAt(col, row);
+      if (!t) continue;
+      if (t.kind === 'solid') return true;
+      if (t.kind === 'oneway' && allowOneway) return true;
+    }
+    return false;
+  }
+
+  tryCornerNudge(e, row) {
+    const maxNudge = 30;
+    for (const dir of [-1, 1]) {
+      for (let n = 4; n <= maxNudge; n += 4) {
+        const left = Math.floor((e.x + dir * n) / TILE);
+        const right = Math.floor((e.x + dir * n + e.w - 0.01) / TILE);
+        if (!this.rowBlocked(row, left, right, false)
+          && !this.columnBlocked(dir < 0 ? left : right, Math.floor(e.y / TILE), Math.floor((e.y + e.h - 0.01) / TILE))) {
+          e.x += dir * n;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  hasFloor(e, dropThrough = false) {
+    const row = Math.floor((e.y + e.h + 1) / TILE);
+    const onRowTop = Math.abs((e.y + e.h) - row * TILE) < 1;
+    if (!onRowTop) return false;
+    const left = Math.floor(e.x / TILE);
+    const right = Math.floor((e.x + e.w - 0.01) / TILE);
+    return this.rowBlocked(row, left, right, !dropThrough);
+  }
+
+  // Is there something to stand on just past the entity's leading edge? Used
+  // by walking enemies to turn around at ledges instead of walking off.
+  groundAhead(e, dir) {
+    const probeX = dir > 0 ? e.x + e.w + 4 : e.x - 4;
+    const col = Math.floor(probeX / TILE);
+    const row = Math.floor((e.y + e.h + 2) / TILE);
+    const t = this.terrainAt(col, row);
+    return !!t && t.kind !== 'hazard';
+  }
+
+  wallAhead(e, dir) {
+    const probeX = dir > 0 ? e.x + e.w + 2 : e.x - 2;
+    const col = Math.floor(probeX / TILE);
+    return this.columnBlocked(col, Math.floor(e.y / TILE), Math.floor((e.y + e.h - 1) / TILE));
+  }
+
+  // True if the entity's box touches the dangerous part of a spike tile.
+  touchesHazard(e) {
+    const left = Math.floor(e.x / TILE);
+    const right = Math.floor((e.x + e.w - 0.01) / TILE);
+    const top = Math.floor(e.y / TILE);
+    const bottom = Math.floor((e.y + e.h - 0.01) / TILE);
+    for (let row = top; row <= bottom; row++) {
+      for (let col = left; col <= right; col++) {
+        if (this.terrainAt(col, row)?.kind !== 'hazard') continue;
+        const spikeTop = (row + 1) * TILE - SPIKE_HEIGHT;
+        if (e.y + e.h > spikeTop + 10) return true;
+      }
+    }
+    return false;
+  }
+
+  // Solid-tile test for projectiles.
+  pointSolid(x, y) {
+    return this.isSolid(Math.floor(x / TILE), Math.floor(y / TILE));
   }
 }
 
-export function checkCollision(a, b) {
-  const noXOverlap = a.getRight() <= b.getLeft() || a.getLeft() >= b.getRight();
-  const noYOverlap = a.getBottom() <= b.getTop() || a.getTop() >= b.getBottom();
-  return !(noXOverlap || noYOverlap);
-}
-
-export function checkCollisionList(sprite, list) {
-  const result = [];
-  for (const other of list) {
-    if (checkCollision(sprite, other)) result.push(other);
-  }
-  return result;
-}
-
-export function isOnPlatforms(sprite, walls) {
-  sprite.centerY += 5;
-  const hit = checkCollisionList(sprite, walls).length > 0;
-  sprite.centerY -= 5;
-  return hit;
-}
-
-// Same algorithm as resolvePlatformCollisions() in wonderBoy.pde, minus the
-// original's accidental double x-move (it applied change_x, resolved the
-// collision, then applied change_x a second time unconditionally).
-export function resolvePlatformCollisions(sprite, walls, gravity) {
-  sprite.changeY += gravity;
-
-  sprite.centerY += sprite.changeY;
-  let collisions = checkCollisionList(sprite, walls);
-  if (collisions.length > 0) {
-    const hit = collisions[0];
-    if (sprite.changeY > 0) sprite.setBottom(hit.getTop());
-    else if (sprite.changeY < 0) sprite.setTop(hit.getBottom());
-    sprite.changeY = 0;
-  }
-
-  sprite.centerX += sprite.changeX;
-  collisions = checkCollisionList(sprite, walls);
-  if (collisions.length > 0) {
-    const hit = collisions[0];
-    if (sprite.changeX > 0) sprite.setRight(hit.getLeft());
-    else if (sprite.changeX < 0) sprite.setLeft(hit.getRight());
-    sprite.changeX = 0;
-  }
-}
-
-export function fellOffMap(sprite) {
-  return sprite.getBottom() > GROUND_LEVEL;
-}
-
-// Whether `entity`'s box overlaps the camera's current view rectangle -
-// used for the boss music cue and for gating FireEnemy's shots to only when
-// it's actually visible.
-export function isVisibleInView(entity, viewX, viewY) {
-  return !(
-    entity.getRight() < viewX || entity.getLeft() > viewX + CANVAS_WIDTH
-    || entity.getBottom() < viewY || entity.getTop() > viewY + CANVAS_HEIGHT
-  );
-}
+export { ONEWAY_THICKNESS, SPIKE_HEIGHT };

@@ -1,101 +1,99 @@
-import { NEUTRAL_FACING, RIGHT_FACING, LEFT_FACING } from "./constants.js";
+import { opaqueBounds, silhouette, outlined } from './art.js';
+import { RIGHT_FACING } from './constants.js';
 
-// Direct port of Sprite.pde: a positioned, box-collidable image.
-export class Sprite {
-  constructor(image, scale, x = 0, y = 0) {
-    this.image = image;
-    this.scale = scale;
-    this.w = image.width * scale;
-    this.h = image.height * scale;
-    this.centerX = x;
-    this.centerY = y;
-    this.changeX = 0;
-    this.changeY = 0;
-    this.flipX = false;
-  }
-
-  display(ctx, viewX, viewY) {
-    const x = this.centerX - this.w / 2 - viewX;
-    const y = this.centerY - this.h / 2 - viewY;
-    if (this.flipX) {
-      ctx.save();
-      ctx.translate(x + this.w, y);
-      ctx.scale(-1, 1);
-      ctx.drawImage(this.image, 0, 0, this.w, this.h);
-      ctx.restore();
-      return;
-    }
-    ctx.drawImage(this.image, x, y, this.w, this.h);
+// Base for everything that moves and collides. (x, y) is the TOP-LEFT of the
+// collision box; art is drawn separately (drawFigure) so a sprite's painted
+// size never affects how it collides.
+export class Entity {
+  constructor(x = 0, y = 0, w = 100, h = 100) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.vx = 0;
+    this.vy = 0;
+    this.facing = RIGHT_FACING;
+    this.onGround = false;
+    this.alive = true;
   }
 
-  update() {
-    this.centerX += this.changeX;
-    this.centerY += this.changeY;
-  }
+  get left() { return this.x; }
+  get right() { return this.x + this.w; }
+  get top() { return this.y; }
+  get bottom() { return this.y + this.h; }
+  get centerX() { return this.x + this.w / 2; }
+  get centerY() { return this.y + this.h / 2; }
+  set centerX(v) { this.x = v - this.w / 2; }
+  set bottom(v) { this.y = v - this.h; }
 
-  setLeft(left) {
-    this.centerX = left + this.w / 2;
-  }
-  getLeft() {
-    return this.centerX - this.w / 2;
-  }
-  setRight(right) {
-    this.centerX = right - this.w / 2;
-  }
-  getRight() {
-    return this.centerX + this.w / 2;
-  }
-  setTop(top) {
-    this.centerY = top + this.h / 2;
-  }
-  getTop() {
-    return this.centerY - this.h / 2;
-  }
-  setBottom(bottom) {
-    this.centerY = bottom - this.h / 2;
-  }
-  getBottom() {
-    return this.centerY + this.h / 2;
+  overlaps(o) {
+    return this.x < o.right && this.right > o.left && this.y < o.bottom && this.bottom > o.top;
   }
 }
 
-// Direct port of AnimatedSprite.pde: frame-based image-array animation.
-export class AnimatedSprite extends Sprite {
-  constructor(image, scale, x = 0, y = 0) {
-    super(image, scale, x, y);
-    this.currentImages = [image];
-    this.standNeutral = [image];
-    this.moveLeft = [image];
-    this.moveRight = [image];
-    this.direction = NEUTRAL_FACING;
-    this.index = 0;
-    this.frame = 0;
-  }
+export function boxesOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
 
-  updateAnimation() {
-    this.frame++;
-    if (this.frame % 5 === 0) {
-      this.selectDirection();
-      this.selectCurrentImages();
-      this.advanceToNextImage();
-    }
+const flashCache = new WeakMap();
+function flashOf(img) {
+  let s = flashCache.get(img);
+  if (!s) {
+    s = silhouette(img);
+    flashCache.set(img, s);
   }
+  return s;
+}
 
-  selectDirection() {
-    if (this.changeX > 0) this.direction = RIGHT_FACING;
-    else if (this.changeX < 0) this.direction = LEFT_FACING;
-    else this.direction = NEUTRAL_FACING;
+const outlineCache = new WeakMap();
+export function outlineOf(img) {
+  let o = outlineCache.get(img);
+  if (!o) {
+    o = outlined(img, Math.max(3, img.height * 0.014));
+    outlineCache.set(img, o);
   }
+  return o;
+}
 
-  selectCurrentImages() {
-    if (this.direction === RIGHT_FACING) this.currentImages = this.moveRight;
-    else if (this.direction === LEFT_FACING) this.currentImages = this.moveLeft;
-    else this.currentImages = this.standNeutral;
+// Draws `img` so its painted feet stand on the entity's bottom edge, centered
+// on the entity horizontally.
+//
+// `ref` is the character's reference frame (normally its first idle frame):
+// its visible height sets the scale, so the standing figure is
+// `figureHeight` world units tall and every other pose keeps the same
+// proportions. Each frame's own lowest visible pixel is what touches the
+// ground. Options add procedural motion on top of static art:
+//   sx/sy   squash & stretch around the feet
+//   rot     rotation (radians) around the feet
+//   ox/oy   offset in world units
+//   alpha   opacity
+//   flash   0..1 white overlay (hit flash)
+//   outline draw an ink outline around the figure (default true)
+export function drawFigure(ctx, img, ref, x, feetY, figureHeight, opts = {}) {
+  if (!img) return;
+  const meta = opaqueBounds(img);
+  const s = figureHeight / opaqueBounds(ref ?? img).height;
+  const w = img.width * s;
+  const h = img.height * s;
+  const {
+    sx = 1, sy = 1, rot = 0, ox = 0, oy = 0, alpha = 1, flash = 0, outline = true,
+  } = opts;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.translate(x + ox, feetY + oy);
+  if (rot) ctx.rotate(rot);
+  if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
+  const dx = -w / 2;
+  const dy = -meta.bottom * s;
+  if (outline) {
+    const o = outlineOf(img);
+    ctx.drawImage(o, dx - o.pad * s, dy - o.pad * s, (o.width / o.k) * s, (o.height / o.k) * s);
+  } else {
+    ctx.drawImage(img, dx, dy, w, h);
   }
-
-  advanceToNextImage() {
-    this.index++;
-    if (this.index >= this.currentImages.length) this.index = 0;
-    this.image = this.currentImages[this.index];
+  if (flash > 0) {
+    ctx.globalAlpha *= Math.min(1, flash);
+    ctx.drawImage(flashOf(img), dx, dy, w, h);
   }
+  ctx.restore();
 }
