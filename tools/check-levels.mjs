@@ -1,7 +1,8 @@
 // Verifies every level can be finished, using the game's real player physics
 // and tile collision: a breadth-first search over every spot the heroine can
 // stand on, trying runs, walk-offs and jumps of different lengths from each.
-// Enemies are ignored; spikes count as impassable.
+// Enemies are ignored for movement; spikes count as impassable. It also
+// fails any stage with an oni or lantern standing within 2 tiles of a ledge.
 //
 // Usage (from the repo root):  node tools/check-levels.mjs
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -19,6 +20,7 @@ const { LEVELS } = await load('levels-data.js');
 const { TILE } = await load('constants.js');
 
 const fakeArt = { idle: { right: [], left: [] } };
+const EDGE_MARGIN = 2;
 
 function makeInput(plan) {
   let tick = 0;
@@ -105,18 +107,33 @@ function check(index) {
   const unreachableCoins = coins.filter((c) => !spots.some(
     (s) => Math.abs(s.x - c.x) < TILE * 1.6 && c.feetY <= s.feetY + 1 && s.feetY - (c.feetY - TILE / 2) < 3.4 * TILE + 60,
   ));
-  return { name: data.name, reachedExit, positions: seen.size, unreachableDoors, unreachableCoins };
+  // Ground enemies must stand at least EDGE_MARGIN tiles back from either end
+  // of their stretch of floor, so they never crowd a landing spot.
+  const arenaCol = level.arenaLeft == null ? Infinity : level.arenaLeft / TILE;
+  const walkable = (col, row) => level.isSolid(col, row + 1) && !level.isSolid(col, row);
+  const enemiesAtEdges = level.spawns.filter((sp) => {
+    if (!'ol'.includes(sp.type) || sp.col >= arenaCol) return false;
+    let lo = sp.col;
+    let hi = sp.col;
+    while (lo > 0 && walkable(lo - 1, sp.row)) lo--;
+    while (hi < level.cols - 1 && walkable(hi + 1, sp.row)) hi++;
+    return sp.col - lo < EDGE_MARGIN || hi - sp.col < EDGE_MARGIN;
+  });
+  return { name: data.name, reachedExit, positions: seen.size, unreachableDoors, unreachableCoins, enemiesAtEdges };
 }
 
 let failed = false;
 for (let i = 0; i < LEVELS.length; i++) {
   const r = check(i);
-  const ok = r.reachedExit && r.unreachableDoors.length === 0;
+  const ok = r.reachedExit && r.unreachableDoors.length === 0 && r.enemiesAtEdges.length === 0;
   if (!ok) failed = true;
   const coinNote = r.unreachableCoins.length
     ? ` - unreachable pickups at ${r.unreachableCoins.map((c) => `(${c.col},${c.row})`).join(' ')}`
     : '';
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${i + 1}. ${r.name}: ${r.positions} spots${r.reachedExit ? '' : ' - EXIT UNREACHABLE'}${
+  const edgeNote = r.enemiesAtEdges.length
+    ? ` - enemies too close to an edge at ${r.enemiesAtEdges.map((e) => `${e.type}(${e.col},${e.row})`).join(' ')}`
+    : '';
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${i + 1}. ${r.name}: ${r.positions} spots${r.reachedExit ? '' : ' - EXIT UNREACHABLE'}${edgeNote}${
     r.unreachableDoors.length ? ` - doors unreachable: ${r.unreachableDoors.map((d) => d.col).join(',')}` : ''}${coinNote}`);
 }
 process.exit(failed ? 1 : 0);

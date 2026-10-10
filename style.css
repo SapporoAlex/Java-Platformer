@@ -6,7 +6,9 @@
   --paper-dark: #e3d4b2;
   --vermilion: #c0392b;
   --gold: #e9b949;
-  --serif: 'Shippori Mincho B1', 'Yu Mincho', 'Hiragino Mincho ProN', Georgia, serif;
+  /* Brush lettering for titles, buttons and numbers; clean sans for prose. */
+  --brush: 'Yuji Syuku', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+  --sans: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -19,7 +21,7 @@ body {
   align-items: center;
   justify-content: center;
   background: radial-gradient(ellipse at center, #2a1e1a 0%, #0c0807 75%);
-  font-family: var(--serif);
+  font-family: var(--brush);
   color: var(--ink);
   overscroll-behavior: none;
   overflow: hidden;
@@ -63,7 +65,86 @@ body {
 
 .screen.dim { background: rgba(15, 8, 6, 0.55); backdrop-filter: blur(2px); }
 
-#loading-screen { background: var(--ink); color: var(--paper); z-index: 10; }
+/* Shops and the stage-clear rest stop sit in front of the Kawase Hasui
+   shrine painting the tile art was cut from. */
+#shop-screen,
+#levelcomplete-screen {
+  background:
+    linear-gradient(rgba(15, 8, 6, 0.45), rgba(15, 8, 6, 0.6)),
+    url('assets/images (2).jpg') center 30% / cover no-repeat,
+    #1b1210;
+}
+
+#loading-screen { background: var(--ink); color: var(--paper); z-index: 40; }
+
+/* ---------------------------------------------------------------- opening */
+.opening {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  background: #000;
+}
+.op-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+.op-1 { object-position: 35% 32%; }
+.op-2 { object-position: 50% 58%; }
+.op-3 { object-position: 55% 38%; }
+/* The wipe: solid black with a soft, feathered leading (bottom) edge. */
+.op-wipe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 135%;
+  background: linear-gradient(#000 0%, #000 74%, rgba(0, 0, 0, 0) 100%);
+  transform: translateY(-115%);
+}
+.op-white,
+.op-black { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.op-white { background: #fff8ec; }
+.op-black { background: #000; }
+.op-gate {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.op-prompt {
+  margin: 0;
+  color: var(--paper);
+  font-size: 1.4em;
+  letter-spacing: 0.3em;
+  animation: op-pulse 1.8s ease-in-out infinite;
+}
+.touch-only { display: none; }
+body.is-touch .touch-only { display: block; }
+body.is-touch .kbd-only { display: none; }
+@keyframes op-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* Main menu credit line */
+.credit {
+  position: absolute;
+  bottom: 0.7em;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-size: 0.8em;
+  letter-spacing: 0.15em;
+  color: var(--paper);
+  text-shadow: 0 0 0.4em rgba(0, 0, 0, 0.8), 0 0.05em 0.1em #000;
+}
 .loading-text { font-size: 1.2em; letter-spacing: 0.1em; }
 
 .panel {
@@ -84,7 +165,7 @@ body {
 .panel h2 {
   margin: 0 0 0.3em;
   font-size: 2.1em;
-  font-weight: 800;
+  font-weight: normal;
   letter-spacing: 0.04em;
 }
 
@@ -99,8 +180,8 @@ body {
 }
 
 .btn {
-  font-family: var(--serif);
-  font-weight: 800;
+  font-family: var(--brush);
+  font-weight: normal;
   font-size: 1em;
   padding: 0.55em 1.6em;
   border: 0.15em solid var(--ink);
@@ -129,6 +210,21 @@ body {
 /* Arrow marker on the focused menu item (keyboard / gamepad navigation). */
 .menu .btn:focus::before { content: '▶ '; }
 
+/* Prose (descriptions, hints, small print) in the clean sans. */
+.subtitle,
+.tagline,
+.controls,
+.shop-greeting,
+.shop-item-info .desc,
+.stat-label,
+.shop-message,
+.shop-status,
+.loading-text,
+.touch-hint,
+#rotate-prompt {
+  font-family: var(--sans);
+}
+
 /* ---------------------------------------------------------------- title */
 #start-screen { gap: 1.4em; }
 
@@ -145,7 +241,7 @@ body {
 .title {
   margin: 0;
   font-size: 4.2em;
-  font-weight: 800;
+  font-weight: normal;
   line-height: 1;
   color: var(--ink);
   text-shadow: 0.04em 0.04em 0 var(--paper), -0.02em -0.02em 0 var(--paper), 0 0.15em 0.4em rgba(0, 0, 0, 0.35);
@@ -157,6 +253,31 @@ body {
   letter-spacing: 0.2em;
   margin-bottom: 0.05em;
 }
+
+/* The "cleared" mark: a vermilion hanko stamped beside the title. */
+.title-block { position: relative; }
+.clear-seal {
+  position: absolute;
+  right: -0.4em;
+  top: -0.6em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 3.4em;
+  height: 3.4em;
+  border: 0.2em solid #c0392b;
+  border-radius: 0.35em;
+  background: rgba(244, 236, 216, 0.55);
+  color: #c0392b;
+  transform: rotate(12deg);
+  text-shadow: none;
+  box-shadow: inset 0 0 0 0.12em rgba(192, 57, 43, 0.35);
+  opacity: 0.92;
+}
+.seal-kanji { font-size: 1.25em; line-height: 1; letter-spacing: 0.05em; }
+.seal-count { font-family: var(--sans); font-size: 0.55em; font-weight: 700; margin-top: 0.2em; }
+.seal-count:empty { display: none; }
 
 .tagline { margin: 0.4em 0 0; color: var(--ink); font-size: 1em; text-shadow: 0 0 0.4em var(--paper); }
 
@@ -178,8 +299,8 @@ kbd {
   min-width: 1.6em;
   margin: 0 0.1em;
   padding: 0.05em 0.35em;
-  font-family: var(--serif);
-  font-weight: 800;
+  font-family: var(--brush);
+  font-weight: normal;
   background: #fff;
   border: 0.1em solid var(--ink);
   border-radius: 0.2em;
@@ -190,7 +311,7 @@ kbd {
 .intro-screen { background: var(--ink); color: var(--paper); }
 .intro-content { display: flex; flex-direction: column; align-items: center; gap: 0.5em; }
 .intro-stage { margin: 0; letter-spacing: 0.4em; color: var(--gold); font-size: 1.1em; }
-.intro-name { margin: 0; font-size: 3em; font-weight: 800; }
+.intro-name { margin: 0; font-size: 3em; font-weight: normal; }
 .intro-lives-lost { margin: 0; color: #ff8a7a; font-size: 1.1em; }
 .intro-lives { margin: 0; font-size: 1.2em; }
 .intro-health-bar {
@@ -206,10 +327,134 @@ kbd {
 /* ---------------------------------------------------------------- stats */
 .stats-row { display: flex; justify-content: center; gap: 2.5em; margin: 0.4em 0 1.2em; }
 .stat { display: flex; flex-direction: column; }
-.stat-value { font-size: 2em; font-weight: 800; color: var(--vermilion); }
+.stat-value { font-size: 2em; font-weight: normal; color: var(--vermilion); }
 .stat-label { font-size: 0.75em; letter-spacing: 0.08em; text-transform: uppercase; }
 
-#gamecomplete-screen { background: rgba(15, 8, 6, 0.4); }
+/* ---------------------------------------------------------------- ending */
+/* Timeline (seconds): 0-0.8 black; 0.8-3.6 dissolve in; 0.8-11 slow pan up
+   the illustration (it's 2:3 portrait, shown full width, so most of it is
+   below the frame at first); text fades in from 10.5. .ending.done jumps to
+   the end (skip). */
+.ending {
+  --pan-start: 0.8s;
+  --pan-length: 10.2s;
+  --text-at: 10.5s;
+  background: #000;
+  overflow: hidden;
+  justify-content: flex-end;
+}
+
+.ending-art {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: auto;
+  transform: translateY(calc(100cqh - 150cqw));
+}
+
+.ending-veil {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.ending-text {
+  position: relative;
+  width: 100%;
+  padding: 2.2em 1.5em 1em;
+  color: var(--paper);
+  background: linear-gradient(rgba(10, 5, 4, 0), rgba(10, 5, 4, 0.72) 32%, rgba(10, 5, 4, 0.9));
+  opacity: 0;
+}
+.ending-text h2 { margin: 0 0 0.1em; font-size: 2.2em; font-weight: normal; text-shadow: 0 0.06em 0.3em #000; }
+.ending-text .subtitle { margin: 0 0 0.6em; opacity: 0.9; }
+.ending-text .stats-row { margin: 0.2em 0 0.8em; }
+.ending-text .stat-value { color: #ff6b5a; }
+.ending-text .menu { flex-direction: row; justify-content: center; min-width: 0; }
+
+.ending.play .ending-art { animation: ending-pan var(--pan-length) cubic-bezier(0.45, 0, 0.35, 1) var(--pan-start) both; }
+.ending.play .ending-veil { animation: ending-dissolve 2.8s ease-in-out var(--pan-start) both; }
+.ending.play .ending-text { animation: ending-text 1.6s ease-out var(--text-at) both; }
+
+.ending.done .ending-art { animation: none; transform: translateY(0); }
+.ending.done .ending-veil { animation: none; opacity: 0; }
+.ending.done .ending-text { animation: none; opacity: 1; }
+
+@keyframes ending-pan {
+  from { transform: translateY(calc(100cqh - 150cqw)); }
+  to { transform: translateY(0); }
+}
+@keyframes ending-dissolve {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes ending-text {
+  from { opacity: 0; transform: translateY(1em); }
+  to { opacity: 1; transform: none; }
+}
+
+/* New Game+ ending: Fuji at sunset with a slow push-in, then the epilogue
+   lines one after the other, then the score and buttons.
+   0-0.8 black; 0.8-4 dissolve; line 1 at 4.5; line 2 at 8; buttons at 11. */
+.ending-art-plus,
+.ending-epilogue { display: none; }
+.ending.plus .ending-art { display: none; }
+.ending.plus .ending-art-plus,
+.ending.plus .ending-epilogue { display: block; }
+.ending.plus .ending-text h2,
+.ending.plus .ending-text .subtitle { display: none; }
+.ending.plus { --text-at: 11s; }
+
+.ending-art-plus {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+  transform-origin: 40% 30%;
+}
+
+/* The epilogue sits in the open sky at the top right, clear of her face and
+   of Fuji; the score and buttons are a slim strip along the bottom. */
+.ending-epilogue {
+  position: absolute;
+  top: 5%;
+  right: 3%;
+  width: 44%;
+  padding: 1.1em 1.4em;
+  text-align: center;
+  color: var(--paper);
+  background: radial-gradient(ellipse at center, rgba(8, 10, 24, 0.62), rgba(8, 10, 24, 0.35) 60%, rgba(8, 10, 24, 0) 75%);
+}
+.ending.plus .ending-text {
+  padding: 1.6em 1.5em 0.8em;
+  background: linear-gradient(rgba(10, 5, 4, 0), rgba(10, 5, 4, 0.78) 45%);
+}
+.ending.plus .ending-text .stats-row { margin: 0 0 0.5em; gap: 2em; }
+.ending.plus .ending-text .stat-value { font-size: 1.5em; }
+
+.epilogue-line { margin: 0 0 0.5em; opacity: 0; text-shadow: 0 0.06em 0.35em #000; }
+.epilogue-1 { font-size: 1.75em; line-height: 1.3; }
+.epilogue-2 { font-family: var(--sans); font-size: 1.05em; line-height: 1.5; letter-spacing: 0.04em; }
+
+.ending.plus.play .ending-veil { animation: ending-dissolve 3.2s ease-in-out 0.8s both; }
+.ending.plus.play .ending-art-plus { animation: ending-push 14s ease-out 0.8s both; }
+.ending.plus.play .epilogue-1 { animation: ending-text 2s ease-out 4.5s both; }
+.ending.plus.play .epilogue-2 { animation: ending-text 2s ease-out 8s both; }
+.ending.plus.done .ending-art-plus { animation: none; transform: scale(1); }
+.ending.plus.done .epilogue-line { animation: none; opacity: 1; }
+
+@keyframes ending-push {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ending.play .ending-art { animation: none; transform: translateY(0); }
+  .ending.plus.play .ending-art-plus { animation: none; }
+}
 
 /* ---------------------------------------------------------------- shop */
 .shop-panel {
@@ -220,12 +465,17 @@ kbd {
     var(--paper);
 }
 
+.shop-panel { padding: 1em 1.8em 1.1em; }
+.shop-panel .shop-items { gap: 0.35em; }
+.shop-panel .shop-item { padding: 0.35em 0.7em; }
+.shop-panel .shop-message { margin: 0.4em 0 0.3em; }
+
 .shop-panel h2 {
   display: inline-block;
   padding: 0 0.3em;
   border-bottom: 0.14em solid var(--shop-accent, var(--vermilion));
 }
-.shop-greeting { margin: -0.2em 0 0.6em; font-style: italic; opacity: 0.85; }
+.shop-greeting { margin: -0.2em 0 0.6em; opacity: 0.85; }
 
 .shop-status {
   display: flex;
@@ -241,7 +491,7 @@ kbd {
   gap: 0.35em;
   padding: 0.15em 0.7em;
   font-size: 1.15em;
-  font-weight: 800;
+  font-weight: normal;
   background: var(--ink);
   color: var(--gold);
   border-radius: 1em;
@@ -277,14 +527,14 @@ kbd {
 
 .shop-item.owned { opacity: 0.6; }
 .shop-item-info { flex: 1; }
-.shop-item-info .name { font-weight: 800; font-size: 1.05em; }
+.shop-item-info .name { font-weight: normal; font-size: 1.05em; }
 .shop-item-info .desc { font-size: 0.8em; opacity: 0.8; }
 
 .price {
   display: inline-flex;
   align-items: center;
   gap: 0.3em;
-  font-weight: 800;
+  font-weight: normal;
   min-width: 3.2em;
   justify-content: flex-end;
 }
@@ -292,7 +542,7 @@ kbd {
 .shop-item .btn { padding: 0.35em 1em; min-width: 5em; }
 .shop-item:focus-within { box-shadow: 0 0 0 0.18em var(--gold); }
 
-.shop-message { min-height: 1.3em; margin: 0.7em 0 0.5em; font-weight: 800; color: var(--vermilion); }
+.shop-message { min-height: 1.3em; margin: 0.7em 0 0.5em; font-weight: normal; color: var(--vermilion); }
 .shop-message.ok { color: #2e7d32; }
 
 /* ---------------------------------------------------------------- corner buttons */
@@ -312,8 +562,8 @@ kbd {
   width: 2em;
   height: 2em;
   font-size: 0.9em;
-  font-family: var(--serif);
-  font-weight: 800;
+  font-family: var(--brush);
+  font-weight: normal;
   border: 0.12em solid var(--ink);
   border-radius: 50%;
   background: rgba(244, 236, 216, 0.85);
@@ -323,38 +573,49 @@ kbd {
 .icon-btn.off { text-decoration: line-through; opacity: 0.6; }
 
 /* ---------------------------------------------------------------- touch */
+/* Fixed to the edges of the phone screen (outside the 16:9 game frame, which
+   leaves bars at the sides on most phones held sideways): movement on the
+   left, slash / jump on the right, door button above jump. */
 #touch-controls {
-  position: absolute;
-  inset: auto 0 0 0;
+  --tb: clamp(68px, 21vh, 112px);
+  position: fixed;
+  inset: 0;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0.8em 1.4em;
+  padding:
+    0
+    max(10px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
   pointer-events: none;
-  z-index: 5;
+  z-index: 20;
 }
 
-.touch-side { display: flex; gap: 0.8em; align-items: flex-end; pointer-events: auto; }
-.touch-right { flex-direction: column; align-items: flex-end; }
-.touch-action-row { display: flex; gap: 0.8em; }
+.touch-side { display: flex; gap: calc(var(--tb) * 0.16); align-items: flex-end; pointer-events: auto; }
+.touch-left { flex-direction: row; }
+.touch-right { flex-direction: column; align-items: flex-end; gap: calc(var(--tb) * 0.14); }
+.touch-action-row { display: flex; gap: calc(var(--tb) * 0.16); align-items: flex-end; }
 
 .touch-btn {
-  width: 3.6em;
-  height: 3.6em;
+  width: var(--tb);
+  height: var(--tb);
   border-radius: 50%;
-  border: 0.15em solid var(--ink);
-  background: rgba(244, 236, 216, 0.55);
+  border: 3px solid var(--ink);
+  background: rgba(244, 236, 216, 0.6);
   color: var(--ink);
-  font-family: var(--serif);
-  font-size: 1.1em;
-  font-weight: 800;
+  font-family: var(--brush);
+  font-size: calc(var(--tb) * 0.4);
+  line-height: 1;
   touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 0 rgba(27, 18, 16, 0.45);
 }
 
-.touch-btn.pressed { background: rgba(233, 185, 73, 0.85); transform: scale(0.94); }
-.touch-btn-action { background: rgba(192, 57, 43, 0.6); color: var(--paper); }
-.touch-btn-action.jump { width: 4.2em; height: 4.2em; }
-.touch-btn-up { width: 3em; height: 3em; }
+.touch-btn.pressed { background: rgba(233, 185, 73, 0.9); transform: translateY(3px); box-shadow: 0 1px 0 rgba(27, 18, 16, 0.45); }
+.touch-btn-action { background: rgba(192, 57, 43, 0.72); color: var(--paper); }
+.touch-btn-action.jump { width: calc(var(--tb) * 1.15); height: calc(var(--tb) * 1.15); }
+.touch-btn-up { width: calc(var(--tb) * 0.8); height: calc(var(--tb) * 0.8); margin-right: calc(var(--tb) * 0.18); }
 
 #rotate-prompt { display: none; }
 .touch-hint { display: none; }
@@ -362,7 +623,8 @@ body.is-touch .touch-hint { display: block; }
 body.is-touch .kbd-controls { display: none; }
 
 @media (orientation: portrait) {
-  body.is-touch #stage { display: none; }
+  body.is-touch #stage,
+  body.is-touch #touch-controls { display: none; }
   body.is-touch #rotate-prompt {
     display: flex;
     position: fixed;

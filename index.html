@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
-    <title>Geisha in Kaibutsuland</title>
+    <title>Lady Snowblood in Kaibutsuland</title>
 
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#1b1210" />
@@ -19,14 +19,14 @@
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Geisha" />
+    <meta name="apple-mobile-web-app-title" content="Snowblood" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Yuji+Syuku&display=swap"
     />
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -39,29 +39,20 @@
         <button id="pause-button" class="icon-btn hidden" aria-label="Pause" title="Pause (Esc)">❚❚</button>
       </div>
 
-      <div id="touch-controls" class="hidden">
-        <div class="touch-side touch-left">
-          <button id="btn-left" class="touch-btn" aria-label="Move left">◀</button>
-          <button id="btn-right" class="touch-btn" aria-label="Move right">▶</button>
-        </div>
-        <div class="touch-side touch-right">
-          <button id="btn-up" class="touch-btn touch-btn-up hidden" aria-label="Enter door">▲</button>
-          <div class="touch-action-row">
-            <button id="btn-attack" class="touch-btn touch-btn-action" aria-label="Attack">斬</button>
-            <button id="btn-jump" class="touch-btn touch-btn-action jump" aria-label="Jump">跳</button>
-          </div>
-        </div>
-      </div>
-
       <div id="start-screen" class="screen">
         <div class="title-block">
-          <p class="title-kanji">怪物ランドの芸者</p>
-          <h1 class="title"><span class="title-lead">Geisha in</span> Kaibutsuland</h1>
+          <p class="title-kanji">怪物ランドの修羅雪姫</p>
+          <h1 class="title"><span class="title-lead">Lady Snowblood in</span> Kaibutsuland</h1>
+          <div id="clear-seal" class="clear-seal hidden" title="You have beaten the game">
+            <span class="seal-kanji">制覇</span>
+            <span class="seal-count" id="clear-count"></span>
+          </div>
           <p class="tagline">A wandering swordswoman. A land overrun by yokai.</p>
         </div>
         <div class="menu">
           <button id="start-button" class="btn">Start Game</button>
           <button id="continue-from-button" class="btn secondary hidden">Continue</button>
+          <button id="ngplus-title-button" class="btn secondary hidden">New Game+</button>
         </div>
         <div class="controls kbd-controls">
           <span><kbd>←</kbd><kbd>→</kbd> move</span>
@@ -72,6 +63,7 @@
           <span><kbd>Esc</kbd> pause</span>
         </div>
         <p class="controls touch-hint">Tap ◀ ▶ to move, 跳 to jump, 斬 to slash.</p>
+        <p class="credit">Game by Alexander McKinley</p>
       </div>
 
       <div id="levelintro-screen" class="screen hidden intro-screen">
@@ -136,8 +128,20 @@
         </div>
       </div>
 
-      <div id="gamecomplete-screen" class="screen hidden">
-        <div class="panel">
+      <!-- Ending: black, dissolve into the illustration, slow pan from its
+           foot up to her face and the red sun, then the text fades in. Any
+           key / click skips ahead. Finishing a New Game+ run plays the
+           .plus variant instead: Fuji at sunset and the epilogue lines.
+           See .ending in style.css. -->
+      <div id="gamecomplete-screen" class="screen hidden ending">
+        <img class="ending-art" src="assets/ending.jpg" alt="Lady Snowblood standing over the fallen Demon Shogun beneath a red sun" />
+        <img class="ending-art-plus" src="assets/ending-ngplus.jpg" alt="Lady Snowblood gazing over Mount Fuji at sunset" />
+        <div class="ending-veil"></div>
+        <div class="ending-epilogue">
+          <p class="epilogue-line epilogue-1">Lady Snowblood weeps, for she has no more kaibutsu to fall.</p>
+          <p class="epilogue-line epilogue-2">Congratulation on beating my game.<br />Thank you for playing.</p>
+        </div>
+        <div class="ending-text" id="ending-text" inert>
           <h2>Kaibutsuland is Free!</h2>
           <p class="subtitle">The Demon Shogun has fallen, and the yokai scatter into the mist.</p>
           <div class="stats-row">
@@ -145,13 +149,42 @@
             <div class="stat"><span class="stat-value" id="final-gold">0</span><span class="stat-label">Gold Collected</span></div>
           </div>
           <div class="menu">
-            <button id="gamecomplete-menu-button" class="btn">Title Screen</button>
+            <button id="ngplus-button" class="btn">New Game+ (keep upgrades)</button>
+            <button id="gamecomplete-menu-button" class="btn secondary">Title Screen</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Opening sequence (js/opening.js): shown once when the game is opened. -->
+      <div id="opening" class="opening">
+        <img class="op-img op-1" src="assets/opening1.jpg" alt="" />
+        <img class="op-img op-2" src="assets/opening2.jpg" alt="" />
+        <img class="op-img op-3" src="assets/opening3.jpg" alt="" />
+        <div class="op-wipe"></div>
+        <div class="op-white"></div>
+        <div class="op-black"></div>
+        <div class="op-gate">
+          <p class="op-prompt kbd-only">Press any key</p>
+          <p class="op-prompt touch-only">Tap to begin</p>
         </div>
       </div>
 
       <div id="loading-screen" class="screen">
         <p class="loading-text">Loading… <span id="loading-pct">0%</span></p>
+      </div>
+    </div>
+
+    <div id="touch-controls" class="hidden">
+      <div class="touch-side touch-left">
+        <button id="btn-left" class="touch-btn" aria-label="Move left">◀</button>
+        <button id="btn-right" class="touch-btn" aria-label="Move right">▶</button>
+      </div>
+      <div class="touch-side touch-right">
+        <button id="btn-up" class="touch-btn touch-btn-up hidden" aria-label="Enter door">▲</button>
+        <div class="touch-action-row">
+          <button id="btn-attack" class="touch-btn touch-btn-action" aria-label="Attack">斬</button>
+          <button id="btn-jump" class="touch-btn touch-btn-action jump" aria-label="Jump">跳</button>
+        </div>
       </div>
     </div>
 

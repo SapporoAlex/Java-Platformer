@@ -176,49 +176,156 @@ export class WorldRenderer {
     }
   }
 
-  // Background buildings: walls and roofs from tile art, dimmed so the
-  // playfield in front reads clearly. Walk-through.
+  // A tile image pre-scaled to one tile and turned into a repeating fill.
+  pattern(ctx, tile) {
+    this.patterns ??= new Map();
+    if (this.patterns.has(tile)) return this.patterns.get(tile);
+    const img = this.art.tiles[tile];
+    let pat = null;
+    if (img) {
+      const c = makeCanvas(TILE, TILE);
+      const pctx = c.getContext('2d');
+      pctx.imageSmoothingQuality = 'high';
+      pctx.drawImage(img, 0, 0, TILE, TILE);
+      pat = ctx.createPattern(c, 'repeat');
+    }
+    this.patterns.set(tile, pat);
+    return pat;
+  }
+
+  // Background architecture, composed from the tile art the way the Kawase
+  // Hasui shrine painting the tiles come from is built (see README.md):
+  //   cypress-bark roof (1) with upturned eaves
+  //   red bracket band under the eaves (7)
+  //   upper balcony on taller buildings (4)
+  //   red pillars (2) alternating with white plaster bays (3/8/9/10),
+  //   optionally a bronze-lantern gallery along the bottom (roof: 6 -> 6.png)
+  //   stone footing (5)
+  // `kind: 'gallery'` is a low roofed corridor of lanterns instead. Everything
+  // here is walk-through backdrop.
   drawBuildings(ctx, level, view) {
-    const { tiles } = this.art;
     for (const b of level.data.buildings ?? []) {
       const x0 = b.col * TILE;
       const x1 = (b.col + b.width) * TILE;
-      if (x1 < view.left - TILE || x0 > view.right + TILE) continue;
-      const roofY = b.top * TILE;
-      const baseY = (b.bottom + 1) * TILE;
-      for (let row = b.top + 1; row <= b.bottom; row++) {
-        for (let col = b.col; col < b.col + b.width; col++) {
-          const img = tiles[(col - b.col) % 3 === 1 ? (b.wall ?? 2) : (b.wall2 ?? b.wall ?? 2)];
-          if (img) ctx.drawImage(img, col * TILE, row * TILE, TILE + 1, TILE + 1);
-        }
-      }
-      // Shade toward the bottom - grounds the building.
-      const sg = ctx.createLinearGradient(0, roofY, 0, baseY);
-      sg.addColorStop(0, 'rgba(20,12,10,0.12)');
-      sg.addColorStop(1, 'rgba(20,12,10,0.38)');
-      ctx.fillStyle = sg;
-      ctx.fillRect(x0, roofY + TILE, x1 - x0, baseY - roofY - TILE);
-      // Roof: a band of roof tiles under a sweeping dark eave.
-      const roof = tiles[b.roof ?? 6];
-      for (let col = b.col; col < b.col + b.width; col++) {
-        if (roof) ctx.drawImage(roof, col * TILE, roofY + TILE * 0.35, TILE + 1, TILE * 0.65);
-      }
-      const over = 50;
-      ctx.fillStyle = b.eave ?? '#2f3b3a';
-      ctx.beginPath();
-      ctx.moveTo(x0 - over, roofY + TILE * 0.42);
-      ctx.quadraticCurveTo(x0 + (x1 - x0) * 0.15, roofY + TILE * 0.2, x0 + (x1 - x0) * 0.25, roofY + TILE * 0.05);
-      ctx.lineTo(x1 - (x1 - x0) * 0.25, roofY + TILE * 0.05);
-      ctx.quadraticCurveTo(x1 - (x1 - x0) * 0.15, roofY + TILE * 0.2, x1 + over, roofY + TILE * 0.42);
-      ctx.lineTo(x1 + over - 14, roofY + TILE * 0.5);
-      ctx.lineTo(x0 - over + 14, roofY + TILE * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 6;
-      ctx.stroke();
-      ctx.strokeRect(x0, roofY + TILE * 0.5, x1 - x0, baseY - roofY - TILE * 0.5);
+      if (x1 < view.left - TILE * 2 || x0 > view.right + TILE * 2) continue;
+      if (b.kind === 'gallery') this.drawGallery(ctx, b, x0, x1);
+      else this.drawShrine(ctx, b, x0, x1);
     }
+  }
+
+  drawShrine(ctx, b, x0, x1) {
+    const { tiles } = this.art;
+    const rows = b.bottom - b.top + 1;
+    const roofY = b.top * TILE;
+    const baseY = (b.bottom + 1) * TILE;
+    const wallTop = roofY + TILE;
+    const white = [3, 8, 9, 10].includes(b.wall) ? b.wall : 3;
+    const lanternRow = b.roof === 6;
+
+    // Walls
+    for (let row = b.top + 1; row <= b.bottom; row++) {
+      for (let col = b.col; col < b.col + b.width; col++) {
+        const i = col - b.col;
+        const pillar = i === 0 || i === b.width - 1 || i % 3 === 0;
+        let tile = pillar ? 2 : white;
+        if (row === b.top + 1 && rows >= 4) tile = 4; // upper balcony
+        else if (row === b.bottom && lanternRow && !pillar) tile = 6;
+        const img = tiles[tile];
+        if (img) ctx.drawImage(img, col * TILE, row * TILE, TILE + 1, TILE + 1);
+      }
+    }
+    // Stone footing
+    this.drawFooting(ctx, x0, x1, baseY, 34);
+    // Depth shading so the playfield in front reads clearly.
+    const sg = ctx.createLinearGradient(0, wallTop, 0, baseY);
+    sg.addColorStop(0, 'rgba(20,12,10,0.3)');
+    sg.addColorStop(0.25, 'rgba(20,12,10,0.1)');
+    sg.addColorStop(1, 'rgba(20,12,10,0.34)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(x0, wallTop, x1 - x0, baseY - wallTop);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 5;
+    ctx.strokeRect(x0, wallTop, x1 - x0, baseY - wallTop);
+
+    // Bracket band (7.png) under the eaves
+    const band = tiles[7];
+    if (band) {
+      for (let col = b.col; col < b.col + b.width; col++) {
+        ctx.drawImage(band, 0, 0, band.width, band.height * 0.6, col * TILE, roofY + TILE * 0.6, TILE + 1, TILE * 0.42);
+      }
+    }
+    this.drawRoof(ctx, x0, x1, roofY + TILE * 0.64, TILE * 0.64, 70);
+  }
+
+  drawGallery(ctx, b, x0, x1) {
+    const { tiles } = this.art;
+    const y = b.bottom * TILE;
+    const baseY = y + TILE;
+    for (let col = b.col; col < b.col + b.width; col++) {
+      if (tiles[6]) ctx.drawImage(tiles[6], col * TILE, y + 20, TILE + 1, TILE - 20);
+    }
+    ctx.fillStyle = 'rgba(20,12,10,0.22)';
+    ctx.fillRect(x0, y + 20, x1 - x0, TILE - 20);
+    // Red posts between bays, cut from the pillar in 2.png
+    for (let col = b.col; col <= b.col + b.width; col++) this.drawPost(ctx, col * TILE - 11, y + 20, TILE - 20);
+    this.drawFooting(ctx, x0, x1, baseY, 26);
+    this.drawRoof(ctx, x0, x1, y + 36, 72, 34);
+  }
+
+  drawFooting(ctx, x0, x1, baseY, h) {
+    const stone = this.art.tiles[5];
+    if (!stone) return;
+    for (let x = x0; x < x1; x += TILE) {
+      const w = Math.min(TILE, x1 - x);
+      ctx.drawImage(stone, 0, stone.height * 0.45, stone.width * (w / TILE), stone.height * 0.55, x, baseY - h, w + 1, h);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x0, baseY - h, x1 - x0, h);
+  }
+
+  drawPost(ctx, x, y, h) {
+    const post = this.art.tiles[2];
+    if (post) ctx.drawImage(post, 0, 0, post.width * 0.16, post.height, x, y, 22, h);
+    else {
+      ctx.fillStyle = '#b5321f';
+      ctx.fillRect(x, y, 22, h);
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, 22, h);
+  }
+
+  // A sweeping roof whose eave line sits at `eaveY`, `height` tall, with the
+  // ends turned up and out by `flare`, filled with the bark texture (1.png).
+  drawRoof(ctx, x0, x1, eaveY, height, flare) {
+    const w = x1 - x0;
+    const top = eaveY - height;
+    ctx.beginPath();
+    ctx.moveTo(x0 - flare, eaveY - height * 0.32);
+    ctx.quadraticCurveTo(x0 - flare * 0.2, eaveY + 4, x0 + w * 0.08, eaveY);
+    ctx.lineTo(x1 - w * 0.08, eaveY);
+    ctx.quadraticCurveTo(x1 + flare * 0.2, eaveY + 4, x1 + flare, eaveY - height * 0.32);
+    ctx.quadraticCurveTo(x1 - w * 0.12, eaveY - height * 0.45, x1 - w * 0.2, top);
+    ctx.lineTo(x0 + w * 0.2, top);
+    ctx.quadraticCurveTo(x0 + w * 0.12, eaveY - height * 0.45, x0 - flare, eaveY - height * 0.32);
+    ctx.closePath();
+    ctx.fillStyle = this.pattern(ctx, 1) ?? '#4a3426';
+    ctx.fill();
+    // Light from above, shadowed eaves
+    const g = ctx.createLinearGradient(0, top, 0, eaveY);
+    g.addColorStop(0, 'rgba(255,240,220,0.12)');
+    g.addColorStop(1, 'rgba(10,5,0,0.35)');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    // Ridge cap
+    ctx.fillStyle = '#2a2420';
+    ctx.fillRect(x0 + w * 0.18, top - 14, w * 0.64, 16);
+    ctx.strokeRect(x0 + w * 0.18, top - 14, w * 0.64, 16);
   }
 
   drawTiles(ctx, level, view, theme) {
@@ -273,6 +380,7 @@ export class WorldRenderer {
           while (end + 1 < level.cols && level.grid[row][end + 1] === '~') end++;
           drawCloud(ctx, start * TILE, (end + 1) * TILE, y, theme, start * 31 + row);
         } else if (t.kind === 'oneway') {
+          if (t.style === 'beam') this.drawBeamPosts(ctx, level, col, row);
           const img = tiles[t.tile];
           // Little brackets under the board read as "you can pass under this".
           ctx.fillStyle = '#3b2416';
@@ -294,6 +402,27 @@ export class WorldRenderer {
         }
       }
     }
+  }
+
+  // Shrine beams (4.png) stand on red posts (2.png's pillar) at the ends of
+  // each run when the ground is close below: verandas, not floating planks.
+  drawBeamPosts(ctx, level, col, row) {
+    const isBeam = (c) => level.grid[row]?.[c] === '-';
+    const leftEnd = !isBeam(col - 1);
+    const rightEnd = !isBeam(col + 1);
+    if (!leftEnd && !rightEnd) return;
+    let floor = -1;
+    for (let r = row + 1; r < Math.min(level.rows, row + 5); r++) {
+      if (level.isSolid(col, r)) {
+        floor = r;
+        break;
+      }
+    }
+    if (floor < 0) return;
+    const top = row * TILE + ONEWAY_THICKNESS;
+    const h = floor * TILE - top;
+    if (leftEnd) this.drawPost(ctx, col * TILE + 14, top, h);
+    if (rightEnd) this.drawPost(ctx, (col + 1) * TILE - 36, top, h);
   }
 
   drawLip(ctx, style, x, y, col, row, theme, openLeft, openRight) {

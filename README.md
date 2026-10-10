@@ -1,4 +1,4 @@
-# Geisha in Kaibutsuland
+# Lady Snowblood in Kaibutsuland
 
 An ukiyo-e action platformer in the spirit of *Wonder Boy in Monster Land*:
 a wandering swordswoman fights through 11 stages of yokai, spends the gold
@@ -42,6 +42,23 @@ exposed in the console.
 Menus work with the arrow keys plus Enter / Z / X, or with a gamepad. On
 touch devices, on-screen buttons appear.
 
+## Opening
+
+When the game is opened, a "Press any key" / "Tap to begin" prompt comes up
+first: browsers only allow sound after the player interacts. Then the opening
+plays, about 6.5 seconds, before the main menu:
+
+1. Black, then `assets/opening1.jpg` (her prayer) fades in and holds for
+   about a second.
+2. A black wipe with a feathered edge rolls down from the top.
+3. A flash to `opening2.jpg` (drawing the sword), with the sword swish.
+4. A flash to white, dissolving to `opening3.jpg` (the strike), with her kiai
+   shout and a thud.
+5. Fade to black, then the menu fades in and the menu music starts.
+
+Any key, tap or gamepad button skips it. The timings are in `js/opening.js`.
+The main menu shows "Game by Alexander McKinley" along the bottom.
+
 ## How it plays
 
 - **Movement:** short acceleration, quick stops, and air control. Jump height
@@ -68,9 +85,30 @@ touch devices, on-screen buttons appear.
   your window to strike. Below half health it speeds up. The exit door stays
   sealed until the boss falls. Boss damage is doubled across the board by
   `BOSS_DAMAGE_MULTIPLIER` in `constants.js`.
-- **Progress** (the furthest stage reached) is saved in the browser, and the
-  title screen offers "Continue". Game Over offers a continue that keeps your
-  upgrades but halves your gold.
+- **Progress** is saved in the browser: the title screen's "Continue" picks
+  your run back up at the last stage you reached, with its upgrades and gold.
+  Game Over offers a continue that keeps your upgrades but halves your gold.
+- **Ending:** after the Demon Shogun falls and you leave through the exit,
+  the screen goes black and dissolves into the ending illustration
+  (`assets/ending.jpg`). The view pans slowly up from her feet to her face and
+  the red sun, then the ending text fades in. Any key, click or tap skips
+  ahead. Finishing a **New Game+** run plays a second ending instead: it
+  fades in from black on her gazing over Fuji at sunset
+  (`assets/ending-ngplus.jpg`), then "Lady Snowblood weeps, for she has no
+  more kaibutsu to fall.", then a thank-you note. `win.mp3` plays on both
+  endings.
+- **Cleared mark:** beating the game stamps a red 制覇 ("conquered") seal on
+  the title screen, with a clear count after repeat clears.
+- **New Game+:** offered on the ending screen and the title once you've won.
+  It's saved in the browser (localStorage), so it's still there next visit:
+  the title's Continue resumes an NG+ run in progress, and New Game+ starts
+  the next loop.
+  You start again at stage 1 with every upgrade you bought: max health,
+  attack, swing speed, the Geta, Penetrating Strike. Gold and lives start
+  fresh. Every oni, lantern and ghost gets a partner (two from the second
+  loop on), still kept back from ledges. Blood spatter is 3x bigger
+  (`NG_PLUS_BLOOD_SCALE` in `constants.js`), and an NG+ badge shows under
+  your lives.
 
 ## Project layout
 
@@ -130,7 +168,10 @@ node tools/check-levels.mjs
 
 The checker runs the game's real physics and tries every run, walk-off and
 jump from every reachable spot. It reports any stage whose exit or shop
-doors can't be reached, plus any coins that are out of reach.
+doors can't be reached, plus any coins that are out of reach. It also fails
+a stage if an oni (`o`) or lantern (`l`) stands within 2 tiles of a ledge or
+wall, so landing spots stay clear. In play, oni also turn back about a tile
+before a ledge (`ONI_EDGE_MARGIN` in `constants.js`).
 
 ## Art
 
@@ -174,9 +215,26 @@ uses the `spider_walk_*` files.
 
 **Tiles** (`1.png`–`10.png`) are stretched to the 150-unit grid, so any
 square size works. The game adds the grass lip, ink edges and depth shading.
-`1` ground, `9`/`10` sand and packed earth (tinted warm), `5` stone block,
-`4`/`3` jump-through beam/plank (only the top strip is shown), `2`/`3`
-building walls, `6`/`7`/`8` roofs.
+The tiles were all cut from Kawase Hasui's painting of a red shrine gate in
+the rain (`assets/images (2).jpg`). The game reassembles them the way the
+painting is built:
+
+| Tile | In the painting | Used for |
+|---|---|---|
+| `1` | cypress-bark roof | ground, and every roof (as a texture) |
+| `2` | red pillar + white wall | building pillars, gallery posts, posts under beams |
+| `3`, `8`, `9`, `10` | white plaster walls | building wall bays; `9`/`10` also sand ground (tinted warm) |
+| `4` | red balcony | jump-through beams, upper story of tall buildings |
+| `5` | stone wall | stone blocks, building footings |
+| `6` | bronze lantern gallery | lantern galleries, lantern rows in buildings |
+| `7` | red bracket band | the band under every roof's eaves |
+
+The painting itself is the backdrop of the shop and stage-clear screens.
+
+Background buildings come in two kinds in `levels-data.js`: shrine halls
+(`{ col, width, top, bottom, roof, wall }`, where `roof: 6` adds a lantern
+row along the bottom) and lantern galleries
+(`{ kind: 'gallery', col, width, top, bottom }`).
 
 **Backdrop:** `bg_parallax.png` is the distant painting. Its top is faded
 into the sky, and it's mirrored every other repeat so it doesn't need to tile

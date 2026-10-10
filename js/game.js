@@ -3,7 +3,7 @@ import {
   MAX_HEALTH, HEART_VALUE, BASE_ATTACK, ATTACK_TOTAL_TICKS, ATTACK_ACTIVE_START, ATTACK_ACTIVE_END,
   STARTING_LIVES, MAX_LIVES, LEVEL_INTRO_TICKS, DEATH_ANIM_TICKS, VICTORY_VARIANT_COUNT,
   HITSTOP_HIT, HITSTOP_KILL, HITSTOP_HURT, HEART_DROP_CHANCE, HEART_PICKUP_HEAL, GHOST_MAX_HOVER,
-  BOSS_DAMAGE_MULTIPLIER,
+  BOSS_DAMAGE_MULTIPLIER, NG_PLUS_BLOOD_SCALE,
 } from './constants.js';
 import {
   Player, Oni, Ghost, Lantern, Boss, Fireball, Pickup, Door, drawHeart,
@@ -16,7 +16,7 @@ import { Effects } from './fx.js';
 import { WorldRenderer, THEMES } from './render.js';
 import { BloodSpatter } from './blood.js';
 
-const HUD_FONT = '"Shippori Mincho B1", "Yu Mincho", serif';
+const HUD_FONT = '"Yuji Syuku", "Yu Mincho", serif';
 
 // Contact damage uses a slightly shrunken enemy box - brushing the very edge
 // of a sprite shouldn't hurt.
@@ -48,6 +48,7 @@ export class Game {
     this.shake = 0;
     this.hitstop = 0;
     this.showHitboxes = false;
+    this.plus = 0; // New Game+ loop (0 = first playthrough)
     this.resetProgress();
   }
 
@@ -69,6 +70,44 @@ export class Game {
 
   startNewGame(levelIndex = 0) {
     this.resetProgress();
+    this.plus = 0;
+    this.enterLevelIntro(levelIndex, { respawn: false });
+  }
+
+  // New Game+: back to stage 1 with every upgrade carried over (`carry` is
+  // a runSnapshot() taken when the game was beaten). `plus` is the loop
+  // number - 1 for the first NG+, 2 for the next, and so on. More enemies
+  // (see addNewGamePlusEnemies) and 3x blood spatter.
+  startNewGamePlus(carry, plus) {
+    this.resetProgress();
+    this.persistentStats = { ...this.persistentStats, ...(carry?.stats ?? {}) };
+    this.purchasedOneTimeItems = new Set(carry?.oneTime ?? []);
+    this.plus = Math.max(1, plus);
+    this.enterLevelIntro(0, { respawn: false });
+  }
+
+  // Everything needed to pick a run back up later (Continue) or carry its
+  // upgrades into New Game+.
+  runSnapshot() {
+    return {
+      plus: this.plus,
+      stats: { ...this.persistentStats },
+      oneTime: [...this.purchasedOneTimeItems],
+      gold: this.gold,
+      totalGoldEarned: this.totalGoldEarned,
+      enemiesDefeated: this.enemiesDefeated,
+    };
+  }
+
+  // Continue from the title screen: restores a saved run at `levelIndex`.
+  restoreRun(snapshot, levelIndex) {
+    this.resetProgress();
+    this.plus = snapshot.plus ?? 0;
+    this.persistentStats = { ...this.persistentStats, ...snapshot.stats };
+    this.purchasedOneTimeItems = new Set(snapshot.oneTime ?? []);
+    this.gold = snapshot.gold ?? 0;
+    this.totalGoldEarned = snapshot.totalGoldEarned ?? 0;
+    this.enemiesDefeated = snapshot.enemiesDefeated ?? 0;
     this.enterLevelIntro(levelIndex, { respawn: false });
   }
 
@@ -149,6 +188,8 @@ export class Game {
       }
     }
     if (this.boss) for (const d of this.doors) if (d.kind === 'exit') d.locked = true;
+    if (this.plus > 0) this.addNewGamePlusEnemies(level, Math.min(2, this.plus));
+    this.blood.scale = this.plus > 0 ? NG_PLUS_BLOOD_SCALE : 1;
 
     this.player.centerX = start.x;
     this.player.bottom = start.feetY;
@@ -164,6 +205,53 @@ export class Game {
     this.hitstop = 0;
     this.fade = 0;
     this.doorTransition = null;
+  }
+
+  // New Game+: every oni, lantern and ghost gets `count` partners. Ground
+  // partners follow the same rule as the maps - at least 2 tiles back from
+  // any ledge or wall, and not crowding doors, the start or each other.
+  addNewGamePlusEnemies(level, count) {
+    const { art } = this;
+    const data = LEVELS[this.levelIndex];
+    const arenaCol = level.arenaLeft == null ? Infinity : level.arenaLeft / TILE;
+    const keepClear = level.spawns.filter((s) => 'PESB'.includes(s.type)).map((s) => s.col);
+    const taken = level.spawns.filter((s) => 'olg'.includes(s.type)).map((s) => [s.col, s.row]);
+    const walkable = (col, row) => level.isSolid(col, row + 1) && !level.isSolid(col, row)
+      && !level.terrainAt(col, row);
+    const free = (col, row) => !taken.some(([c, r]) => Math.abs(c - col) < 2 && Math.abs(r - row) <= 1)
+      && !keepClear.some((c) => Math.abs(c - col) <= 3) && col >= 8 && col < arenaCol - 1;
+
+    for (const s of level.spawns.filter((sp) => 'olg'.includes(sp.type) && sp.col < arenaCol)) {
+      for (let k = 0; k < count; k++) {
+        let col = null;
+        if (s.type === 'g') {
+          for (const off of [4, -4, 6, -6, 8, -8]) {
+            const c = s.col + off + Math.sign(off) * k * 2;
+            if (c >= 8 && c < arenaCol - 1 && free(c, s.row)) { col = c; break; }
+          }
+          if (col == null) continue;
+          const spawn = { ...s, col, x: col * TILE + TILE / 2 };
+          this.enemies.push(new Ghost(art.ghost, spawn.x, this.ghostHoverFeet(level, spawn), data.ghostRange ?? 3));
+        } else {
+          let lo = s.col;
+          let hi = s.col;
+          while (lo > 0 && walkable(lo - 1, s.row)) lo--;
+          while (hi < level.cols - 1 && walkable(hi + 1, s.row)) hi++;
+          for (let d = 2; d <= hi - lo; d++) {
+            for (const c of [s.col + d, s.col - d]) {
+              if (c >= lo + 2 && c <= hi - 2 && free(c, s.row)) { col = c; break; }
+            }
+            if (col != null) break;
+          }
+          if (col == null) continue;
+          const x = col * TILE + TILE / 2;
+          const feetY = (s.row + 1) * TILE;
+          if (s.type === 'o') this.enemies.push(new Oni(art.oni, x, feetY));
+          else this.lanterns.push(new Lantern(art.lantern, x, feetY));
+        }
+        taken.push([col, s.row]);
+      }
+    }
   }
 
   // Ghosts hover no higher than GHOST_MAX_HOVER above the floor beneath
@@ -764,7 +852,7 @@ export class Game {
     ctx.fillStyle = d.locked ? '#b3241a' : '#1b1210';
     ctx.beginPath();
     if (d.locked) {
-      ctx.font = `bold 52px ${HUD_FONT}`;
+      ctx.font = `52px ${HUD_FONT}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('封', x, y + 2);
@@ -931,6 +1019,20 @@ export class Game {
     ctx.arc(px, 66, 40, 0, Math.PI * 2);
     ctx.stroke();
     this.hudText(ctx, `×${this.lives}`, px + 52, 82, 46, 'left');
+    if (this.plus > 0) {
+      // New Game+ badge: a little red seal under the lives counter.
+      const label = this.plus > 1 ? `NG+${this.plus}` : 'NG+';
+      ctx.save();
+      ctx.translate(px + 20, 142);
+      ctx.rotate(-0.06);
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(-70, -24, 140, 48);
+      ctx.strokeStyle = '#1b1210';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(-70, -24, 140, 48);
+      ctx.restore();
+      this.hudText(ctx, label, px + 20, 144, 38, 'center', '#fff8e6');
+    }
 
     // Boss
     if (this.boss && this.arena) this.renderBossBar(ctx);
@@ -975,7 +1077,7 @@ export class Game {
   }
 
   hudText(ctx, text, x, y, size, align = 'left', color = '#fff8e6') {
-    ctx.font = `800 ${size}px ${HUD_FONT}`;
+    ctx.font = `${size}px ${HUD_FONT}`;
     ctx.textAlign = align;
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';

@@ -207,10 +207,11 @@ export class Level {
     return this.rowBlocked(row, left, right, !dropThrough);
   }
 
-  // Is there something to stand on just past the entity's leading edge? Used
-  // by walking enemies to turn around at ledges instead of walking off.
-  groundAhead(e, dir) {
-    const probeX = dir > 0 ? e.x + e.w + 4 : e.x - 4;
+  // Is there something to stand on `lookahead` px past the entity's leading
+  // edge? Walking enemies use this to turn around before a ledge, so they
+  // never loiter right at the edge where the player needs to land.
+  groundAhead(e, dir, lookahead = 4) {
+    const probeX = dir > 0 ? e.x + e.w + lookahead : e.x - lookahead;
     const col = Math.floor(probeX / TILE);
     const row = Math.floor((e.y + e.h + 2) / TILE);
     const t = this.terrainAt(col, row);

@@ -81,6 +81,9 @@ export const ONI_HEALTH = 20;
 export const ONI_SPEED = 2.4;
 export const ONI_CHARGE_SPEED = 5.2;
 export const ONI_DAMAGE = 10;
+// Oni turn around when the ground ends this far ahead of them, so they stay
+// back from ledges instead of patrolling right up to the edge.
+export const ONI_EDGE_MARGIN = TILE * 1.1;
 
 export const GHOST_W = 110;
 export const GHOST_H = 170;
@@ -121,6 +124,9 @@ export const BOSS_DEATH_TICKS = 90;
 // Scales every boss's damage (slash, contact and fireballs) on top of the
 // per-boss attackStrength in levels-data.js.
 export const BOSS_DAMAGE_MULTIPLIER = 2;
+
+// New Game+: blood spatter droplets are this many times bigger.
+export const NG_PLUS_BLOOD_SCALE = 3;
 
 // --- Pickups ----------------------------------------------------------------
 export const COIN_SIZE = 70;

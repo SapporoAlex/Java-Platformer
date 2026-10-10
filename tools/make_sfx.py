@@ -202,10 +202,61 @@ def shout(text, shift=1.12, drive=2.4, max_len=0.42, verb=0.16):
     return reverb(x, 0.3, verb)
 
 
+def bend(x, start=1.0, end=0.8, curve=1.5):
+    """Pitch glide over the clip: playback rate eases from `start` to `end`."""
+    n = len(x)
+    k = np.linspace(0, 1, n) ** curve
+    rate = start + (end - start) * k
+    pos = np.cumsum(rate)
+    pos = pos[pos < n - 1]
+    return np.interp(pos, np.arange(n), x)
+
+
+def presence(x, amount=0.6):
+    """Adds bite: blends in a band around 2-5 kHz where shouts cut through."""
+    return x + amount * bandpass(x, 2000, 5000)
+
+
+def huff(dur=0.05):
+    """The sharp breath at the start of a kiai."""
+    n = int(dur * SR)
+    return bandpass(rng.standard_normal(n), 900, 4500) * env(n, 0.002, dur * 0.7, 3)
+
+
+def kiai(text, shift=1.04, max_len=0.42, drive=4.2):
+    """Aggressive strike shout: hard onset, a pitched-down double underneath
+    for chest and growl, heavy drive, and a clipped, punchy tail."""
+    x = tts(text, pitch="high", rate="x-fast")
+    x = pitch_shift(x, shift)[: int(max_len * SR)]
+    x = bend(x, 1.03, 0.94, 2.0)                          # snaps then drops - forceful
+    low = pitch_shift(x, 0.78)[: len(x)]
+    low = np.pad(low, (0, len(x) - len(low)))
+    x = normalize(x) + 0.42 * normalize(low)
+    x = highpass(presence(x, 0.7), 160)
+    x *= env(len(x), 0.002, max_len * 0.75, 1.8)
+    x = saturate(normalize(x), drive)
+    x = mix((x, 0.012), (huff() * 0.55, 0))
+    return reverb(x, 0.22, 0.12)
+
+
+def cry(text, shift=1.24, length=0.75, drive=3.4):
+    """Dramatic pained cry: cracks upward, then falls away with a shaky,
+    breathy vibrato and a longer echo."""
+    x = tts(text, pitch="x-high", rate="medium")
+    x = pitch_shift(x, shift)[: int(length * SR)]
+    x = bend(x, 1.1, 0.78, 1.2)
+    x = vibrato(x, 0.0035, 11)
+    breath = bandpass(rng.standard_normal(len(x)), 1500, 6000) * env(len(x), 0.01, length, 2) * 0.12
+    x = highpass(presence(normalize(x) + breath, 0.5), 200)
+    x *= env(len(x), 0.004, length, 1.4)
+    x = saturate(normalize(x), drive)
+    return reverb(x, 0.55, 0.28)
+
+
 def scream(text, shift=1.2, length=1.1):
     x = tts(text, pitch="x-high", rate="slow")
     x = pitch_shift(x, shift)
-    x = vibrato(x[: int(length * SR)], 0.003, 7)
+    x = vibrato(bend(x[: int(length * SR)], 1.05, 0.7, 1.1), 0.004, 8)
     x = highpass(x, 180)
     x *= env(len(x), 0.01, length, 1.3)
     x = saturate(normalize(x), 2.8)
@@ -253,14 +304,14 @@ C5, E5, A5 = 523.3, 659.3, 880.0
 
 def main():
     print("Voice (Microsoft Haruka TTS, processed):")
-    save("attack", shout("ヤッ"))
-    save("attack2", shout("ハッ", shift=1.15))
-    save("attack3", shout("エイッ", shift=1.1, max_len=0.48))
-    save("attack4", shout("ヤァッ", shift=1.12, max_len=0.5))
-    save("hurt", shout("キャッ", shift=1.18, drive=3.0, max_len=0.45, verb=0.2))
-    save("hurt2", shout("アッ", shift=1.2, drive=3.0, max_len=0.4, verb=0.2))
-    save("hurt3", shout("イタッ", shift=1.15, drive=3.0, max_len=0.5, verb=0.2))
-    save("die", pad(scream("キャアアアアア"), 0.2))
+    save("attack", kiai("ハアッ"))
+    save("attack2", kiai("セイッ", shift=1.06))
+    save("attack3", kiai("ヤアッ", shift=1.02, max_len=0.46))
+    save("attack4", kiai("トォッ", shift=1.05, max_len=0.4))
+    save("hurt", cry("キャアッ"))
+    save("hurt2", cry("ウアッ", shift=1.18, length=0.65))
+    save("hurt3", cry("イヤアッ", shift=1.22, length=0.85))
+    save("die", pad(scream("キャアアアアアアッ", shift=1.22, length=1.6), 0.3))
     roar = tts("グオオオオオ", pitch="x-low", rate="slow")
     roar = pitch_shift(roar, 0.55)[: int(1.6 * SR)]
     roar = saturate(normalize(lowpass(roar, 2500)), 4.0) * env(len(roar), 0.05, 1.6, 1.2)

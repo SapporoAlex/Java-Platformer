@@ -39,7 +39,7 @@ export const SHOPS = {
     theme: { from: '#0f1f2b', to: '#2a5a7a', accent: '#7fe0ff' },
     items: [
       {
-        id: 'spear', kind: 'weaponMultiplier', label: 'Runic Spear',
+        id: 'spear', kind: 'weaponMultiplier', label: 'Penetrating Strike',
         description: 'Doubles attack damage', cost: 30, amount: 2, oneTime: true,
       },
       { id: 'fullheal', kind: 'fullheal', label: 'Elixir of Renewal', description: 'Fully restore HP', cost: 8 },
@@ -55,7 +55,7 @@ export const SHOPS = {
     theme: { from: '#1a1a1c', to: '#4a4440', accent: '#ff8a3d' },
     items: [
       { id: 'whetstone', kind: 'weapon', label: 'Whetstone', description: '+8 attack damage', cost: 18, amount: 8 },
-      { id: 'ration', kind: 'potion', label: 'Field Ration', description: 'Restore 40 HP', cost: 4, amount: 40 },
+      { id: 'ration', kind: 'potion', label: 'Onigiri', description: 'A rice ball for the road. Restore 40 HP', cost: 4, amount: 40 },
       {
         id: 'swiftstrike', kind: 'attackSpeed', label: 'Swift Strike Training',
         description: 'Halves attack cooldown', cost: 25, amount: 0.5, oneTime: true,

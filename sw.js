@@ -1,7 +1,7 @@
 // Service worker: makes the game installable as a PWA and playable offline.
 // Network-first, so a fresh deploy (or a local edit) always shows up on the
 // next load; the cache is only a fallback when the network is unavailable.
-const CACHE_NAME = 'geisha-kaibutsuland-v4';
+const CACHE_NAME = 'snowblood-kaibutsuland-v5';
 
 self.addEventListener('install', () => self.skipWaiting());
 

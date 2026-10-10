@@ -17,6 +17,7 @@ export class BloodSpatter {
     this.canvas.height = CANVAS_HEIGHT;
     this.ctx = this.canvas.getContext('2d');
     this.pending = []; // droplets still in flight, landing over a few ticks
+    this.scale = 1; // droplet size multiplier (3 in New Game+)
     this.dirty = false;
   }
 
@@ -41,7 +42,7 @@ export class BloodSpatter {
     const mist = Math.round(rand(18, 30) * strength);
     for (let i = 0; i < mist; i++) {
       this.pending.push({
-        x: rand(0, CANVAS_WIDTH), y: rand(0, CANVAS_HEIGHT), r: rand(1.2, 3.2), angle: 0, stretch: 1,
+        x: rand(0, CANVAS_WIDTH), y: rand(0, CANVAS_HEIGHT), r: rand(1.2, 3.2) * this.scale, angle: 0, stretch: 1,
         color: pick(REDS), delay: Math.floor(rand(0, 12)),
       });
     }
@@ -52,20 +53,21 @@ export class BloodSpatter {
   flick(cx, cy, angle, count, delay) {
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
+    const spread = 1 + (this.scale - 1) * 0.35; // bigger drops fly a bit further
     for (let i = 0; i < count; i++) {
-      const along = rand(0, 1) ** 1.4 * rand(260, 620);
+      const along = rand(0, 1) ** 1.4 * rand(260, 620) * spread;
       const across = rand(-1, 1) * (40 + along * 0.25);
       const size = Math.random() ** 3; // mostly small, a few big
-      const r = 1.5 + size * 16 * (1 - along / 900);
+      const r = (1.5 + size * 16 * (1 - along / (900 * spread))) * this.scale;
       const x = cx + dx * along - dy * across;
       const y = cy + dy * along + dx * across;
       const drop = {
-        x, y, r, angle, stretch: r > 7 && Math.random() < 0.6 ? rand(1.3, 1.9) : rand(1, 1.12), color: pick(REDS),
+        x, y, r, angle, stretch: r > 7 * this.scale && Math.random() < 0.6 ? rand(1.3, 1.9) : rand(1, 1.12), color: pick(REDS),
         delay: delay + Math.floor(along / 90),
       };
       this.pending.push(drop);
       // Big drops throw a satellite or two further along the flick.
-      if (r > 7) {
+      if (r > 7 * this.scale) {
         const sats = 1 + Math.floor(Math.random() * 2);
         for (let k = 1; k <= sats; k++) {
           const d = r * (2.5 + k * 2.2);

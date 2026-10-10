@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import { Sfx } from './audio.js';
 import { MusicPlayer } from './music.js';
 import { outlineOf } from './sprite.js';
+import { Opening, preloadOpening } from './opening.js';
 import { LEVELS } from './levels-data.js';
 import { LEVEL_INTRO_SECONDS, TICKS_PER_SECOND } from './constants.js';
 
@@ -158,9 +159,41 @@ function renderShopScreen(game, keepFocusId = null) {
   else if (keepFocusId) focusFirst(screens.shop);
 }
 
+// The ending sequence (see .ending in style.css): restart its animation and
+// keep its buttons out of reach until the text has faded in - or until the
+// player skips ahead with any key / click / tap.
+// `newGamePlus` picks the second ending (finishing a New Game+ run).
+const ENDING_TEXT_MS = { normal: 10500 + 1200, plus: 11000 + 1200 };
+let endingTimer = null;
+
+function startEnding(newGamePlus) {
+  const el = screens.gamecomplete;
+  el.classList.remove('play', 'done');
+  el.classList.toggle('plus', newGamePlus);
+  void el.offsetWidth; // restart the CSS animations
+  el.classList.add('play');
+  $('ending-text').inert = true;
+  clearTimeout(endingTimer);
+  endingTimer = setTimeout(revealEnding, ENDING_TEXT_MS[newGamePlus ? 'plus' : 'normal']);
+}
+
+function revealEnding() {
+  const el = screens.gamecomplete;
+  if (el.classList.contains('done')) return;
+  clearTimeout(endingTimer);
+  el.classList.add('done');
+  $('ending-text').inert = false;
+  focusFirst(el);
+}
+
+function endingRevealed() {
+  return screens.gamecomplete.classList.contains('done');
+}
+
 function renderLevelIntroScreen(game) {
   const levelData = LEVELS[game.levelIndex];
-  $('intro-level-number').textContent = `STAGE ${game.levelIndex + 1}`;
+  const loop = game.plus > 1 ? `NEW GAME+${game.plus}` : 'NEW GAME+';
+  $('intro-level-number').textContent = `STAGE ${game.levelIndex + 1}${game.plus > 0 ? ` · ${loop}` : ''}`;
   $('intro-level-name').textContent = levelData.name;
   $('intro-lives-lost').classList.toggle('hidden', !game.introRespawn);
   $('intro-lives-count').textContent = `× ${game.lives}`;
@@ -178,9 +211,11 @@ function renderLevelIntroScreen(game) {
 
 async function boot() {
   const pct = $('loading-pct');
+  const openingReady = preloadOpening();
   const images = await loadImages((done, total) => {
     pct.textContent = `${Math.round((done / total) * 100)}%`;
   });
+  await openingReady;
   const art = buildArt(images);
   // Build the outlined copies of every character frame up front, so the
   // first time an enemy appears doesn't hitch.
@@ -194,7 +229,7 @@ async function boot() {
   // Don't hold the game hostage to a slow font CDN; the canvas falls back to
   // a system serif until it arrives.
   await Promise.race([
-    document.fonts?.load('800 40px "Shippori Mincho B1"').catch(() => {}),
+    document.fonts?.load('40px "Yuji Syuku"').catch(() => {}),
     new Promise((r) => { setTimeout(r, 1500); }),
   ]);
   loadDeferred(images, art);
@@ -239,14 +274,35 @@ async function boot() {
   const unlockAudio = () => { sfx.unlock(); music.unlock(); };
   document.addEventListener('pointerdown', unlockAudio, { once: true });
   document.addEventListener('keydown', unlockAudio, { once: true });
-  music.playTitle();
+
+  // Opening sequence, then the menu (and its music).
+  const opening = new Opening($('opening'), {
+    sfx,
+    onUnlock: unlockAudio,
+    onDone: () => {
+      music.playTitle();
+      focusFirst(screens.start);
+    },
+  });
+  opening.show();
 
   // --- menu buttons ---
+  // Title screen: Continue (a saved run in progress), New Game+ and the
+  // cleared seal (once the game has been beaten).
   const updateContinueButton = () => {
-    const { level = 0 } = readSave();
+    const save = readSave();
+    const level = save.level ?? 0;
+    const plus = save.run?.plus ?? 0;
     const btn = $('continue-from-button');
-    btn.classList.toggle('hidden', level <= 0);
-    btn.textContent = `Continue — Stage ${level + 1}`;
+    btn.classList.toggle('hidden', level <= 0 && plus <= 0);
+    btn.textContent = `Continue — Stage ${level + 1}${plus > 0 ? ' (NG+)' : ''}`;
+
+    const cleared = !!save.cleared;
+    $('clear-seal').classList.toggle('hidden', !cleared);
+    $('clear-count').textContent = (save.clears ?? 0) > 1 ? `×${save.clears}` : '';
+    const ng = $('ngplus-title-button');
+    ng.classList.toggle('hidden', !cleared);
+    ng.textContent = (save.nextPlus ?? 1) > 1 ? `New Game+${save.nextPlus}` : 'New Game+';
   };
   updateContinueButton();
 
@@ -254,8 +310,17 @@ async function boot() {
   $('start-button').addEventListener('click', () => { unlockAudio(); game.startNewGame(0); });
   $('continue-from-button').addEventListener('click', () => {
     unlockAudio();
-    game.startNewGame(Math.min(readSave().level ?? 0, LEVELS.length - 1));
+    const save = readSave();
+    const level = Math.min(save.level ?? 0, LEVELS.length - 1);
+    if (save.run) game.restoreRun(save.run, level);
+    else game.startNewGame(level); // saves from before runs were stored
   });
+  $('ngplus-title-button').addEventListener('click', () => {
+    unlockAudio();
+    const save = readSave();
+    game.startNewGamePlus(save.carry, save.nextPlus ?? 1);
+  });
+  $('ngplus-button').addEventListener('click', () => game.startNewGamePlus(game.runSnapshot(), game.plus + 1));
   $('restart-game-button').addEventListener('click', () => game.startNewGame(0));
   $('gameover-continue-button').addEventListener('click', () => game.continueGame());
   $('gameover-menu-button').addEventListener('click', toTitle);
@@ -274,6 +339,11 @@ async function boot() {
     if (e.code === 'Backquote') game.showHitboxes = !game.showHitboxes;
     const screenEl = screens[game.state];
     if (!screenEl || game.state === 'levelintro') return;
+    if (game.state === 'gamecomplete' && !endingRevealed()) {
+      e.preventDefault();
+      revealEnding();
+      return;
+    }
     if (['ArrowDown', 'ArrowRight', 'KeyS', 'KeyD'].includes(e.code)) {
       e.preventDefault();
       moveFocus(screenEl, 1);
@@ -294,13 +364,24 @@ async function boot() {
     }
   });
 
+  screens.gamecomplete.addEventListener('pointerdown', () => {
+    if (!endingRevealed()) revealEnding();
+  });
+
   // Gamepad equivalents of the above, edge-triggered.
   let prevPad = new Set();
   function pollMenuGamepad() {
     const pad = input.padDown;
     const pressed = (a) => pad.has(a) && !prevPad.has(a);
+    if (opening.active) {
+      if (['jump', 'attack', 'pause'].some(pressed)) opening.press();
+      prevPad = new Set(pad);
+      return;
+    }
     const screenEl = screens[game.state];
-    if (screenEl && game.state !== 'levelintro') {
+    if (game.state === 'gamecomplete' && !endingRevealed()) {
+      if (pressed('jump') || pressed('attack') || pressed('pause')) revealEnding();
+    } else if (screenEl && game.state !== 'levelintro') {
       if (pressed('down') || pressed('right')) moveFocus(screenEl, 1);
       if (pressed('up') || pressed('left')) moveFocus(screenEl, -1);
       if (pressed('jump')) {
@@ -331,7 +412,8 @@ async function boot() {
         break;
       case 'levelintro':
         renderLevelIntroScreen(game);
-        writeSave({ level: Math.max(readSave().level ?? 0, game.levelIndex) });
+        // The run in progress - Continue picks it up with its upgrades.
+        writeSave({ level: game.levelIndex, run: game.runSnapshot() });
         break;
       case 'gameover':
         $('gameover-reason').textContent = game.deathCause === 'fall'
@@ -342,7 +424,7 @@ async function boot() {
         $('levelcomplete-message').textContent = `${LEVELS[game.levelIndex].name} is safe again.`;
         $('stage-gold').textContent = game.levelGold;
         $('stage-kills').textContent = game.levelKills;
-        writeSave({ level: Math.max(readSave().level ?? 0, game.levelIndex + 1) });
+        writeSave({ level: game.levelIndex + 1, run: game.runSnapshot() });
         break;
       case 'shop':
         $('shop-message').innerHTML = '&nbsp;';
@@ -351,7 +433,21 @@ async function boot() {
       case 'gamecomplete':
         $('final-score').textContent = game.finalScore();
         $('final-gold').textContent = game.totalGoldEarned;
-        music.playVictory();
+        music.playVictory(); // win.mp3 - both endings
+        startEnding(game.plus > 0);
+        {
+          // Mark the game as beaten (the title's seal) and keep this run's
+          // upgrades for New Game+. The finished run is no longer continuable.
+          const save = readSave();
+          writeSave({
+            cleared: true,
+            clears: (save.clears ?? 0) + 1,
+            carry: game.runSnapshot(),
+            nextPlus: game.plus + 1,
+            level: 0,
+            run: null,
+          });
+        }
         break;
       default:
         break;
@@ -377,6 +473,8 @@ async function boot() {
     game.render();
     const playing = game.state === 'playing';
     pauseButton.classList.toggle('hidden', !playing);
+    // Mute stays reachable in play and on the title, but steps aside for menus.
+    $('corner-buttons').classList.toggle('hidden', !playing && game.state !== 'start');
     if (isTouch) {
       touchControls.classList.toggle('hidden', !playing);
       $('btn-up').classList.toggle('hidden', !game.activeDoor);

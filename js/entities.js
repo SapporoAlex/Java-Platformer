@@ -6,7 +6,7 @@ import {
   COYOTE_TICKS, JUMP_BUFFER_TICKS, MAX_HEALTH, BASE_ATTACK, ATTACK_TOTAL_TICKS, ATTACK_ACTIVE_START,
   ATTACK_ACTIVE_END, ATTACK_REACH, HURT_INVULN_TICKS, HURT_STUN_TICKS, HURT_KNOCKBACK_X, HURT_KNOCKBACK_Y,
   ENEMY_HITSTUN_TICKS, ENEMY_KNOCKBACK, VICTORY_TOTAL_TICKS,
-  ONI_W, ONI_H, ONI_HEALTH, ONI_SPEED, ONI_CHARGE_SPEED, ONI_DAMAGE,
+  ONI_W, ONI_H, ONI_HEALTH, ONI_SPEED, ONI_CHARGE_SPEED, ONI_DAMAGE, ONI_EDGE_MARGIN,
   GHOST_W, GHOST_H, GHOST_HEALTH, GHOST_SPEED, GHOST_DIVE_SPEED, GHOST_TRIGGER_X, GHOST_COOLDOWN_TICKS, GHOST_DAMAGE,
   LANTERN_W, LANTERN_H, LANTERN_HEALTH, LANTERN_INTERVAL_TICKS, LANTERN_WINDUP_TICKS, LANTERN_DAMAGE,
   FIREBALL_SPEED, FIREBALL_SIZE, FIREBALL_DAMAGE, FIREBALL_LIFE_TICKS,
@@ -310,7 +310,7 @@ export class Oni extends Enemy {
       const facingPlayer = Math.sign(dx) === this.facing;
       if (this.charging <= 0 && sameFloor && facingPlayer && Math.abs(dx) < TILE * 4.5) this.charging = 60;
       if (this.charging > 0) this.charging--;
-      if (this.onGround && (level.wallAhead(this, this.facing) || !level.groundAhead(this, this.facing))) {
+      if (this.onGround && (level.wallAhead(this, this.facing) || !level.groundAhead(this, this.facing, ONI_EDGE_MARGIN))) {
         this.facing = -this.facing;
         this.charging = 0;
       }

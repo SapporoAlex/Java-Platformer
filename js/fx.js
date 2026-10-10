@@ -184,7 +184,7 @@ export class Effects {
     for (const t of this.popups) {
       const k = t.age / t.life;
       ctx.globalAlpha = 1 - k * k;
-      ctx.font = 'bold 54px "Shippori Mincho B1", serif';
+      ctx.font = '58px "Yuji Syuku", serif';
       ctx.lineWidth = 10;
       ctx.strokeStyle = '#1b1210';
       ctx.fillStyle = t.color;
