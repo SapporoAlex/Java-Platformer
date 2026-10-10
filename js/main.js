@@ -289,6 +289,7 @@ async function boot() {
     },
   });
   opening.show();
+  window.opening = opening; // console debugging
 
   // --- menu buttons ---
   // Title screen: Continue (a saved run in progress), New Game+ and the

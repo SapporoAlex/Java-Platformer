@@ -239,6 +239,46 @@ def kiai(text, shift=1.04, max_len=0.42, drive=4.2):
     return reverb(x, 0.22, 0.12)
 
 
+def battle_cry(text, shift=1.06, length=1.6):
+    """A full shouted line: loud and fierce but still intelligible - less
+    drive than a kiai, a pitched-down double for weight, a big hall echo."""
+    x = tts(text, pitch="high", rate="medium")
+    x = pitch_shift(x, shift)[: int(length * SR)]
+    low = pitch_shift(x, 0.8)[: len(x)]
+    low = np.pad(low, (0, len(x) - len(low)))
+    x = normalize(x) + 0.3 * normalize(low)
+    x = highpass(presence(x, 0.65), 150)
+    x *= env(len(x), 0.004, length, 0.9)
+    x = saturate(normalize(x), 2.6)
+    x = mix((x, 0.01), (huff(0.07) * 0.5, 0))
+    return reverb(x, 1.1, 0.32, 4500)
+
+
+def chop(dur=0.55):
+    """An axe biting into flesh: a sharp crack, a hard mid-range cleave, a
+    short deep body hit, then a wet tail of squelch and splatter droplets."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    noise = rng.standard_normal(n)
+    crack = highpass(noise, 2200) * env(n, 0.0004, 0.012, 5) * 0.9
+    cleave = bandpass(noise, 500, 2600) * env(n, 0.0008, 0.07, 4) * 1.1
+    cleave += bandpass(noise, 900, 1300, 4) * env(n, 0.001, 0.05, 4) * 1.4  # woody ring of the haft
+    f = 95 - 45 * np.clip(t / 0.12, 0, 1)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.001, 0.11, 4) * 0.8
+    squelch_env = np.clip((t - 0.02) / 0.02, 0, 1) * np.exp(-np.maximum(t - 0.04, 0) / 0.11)
+    squelch = lowpass(noise, 900) * squelch_env * (0.6 + 0.4 * np.sin(2 * np.pi * 27 * t)) * 0.7
+    drops = np.zeros(n)
+    for k in range(9):
+        at = int(rng.uniform(0.03, 0.32) * SR)
+        g = int(rng.uniform(0.004, 0.014) * SR)
+        lo = rng.uniform(500, 1400)
+        grain = bandpass(rng.standard_normal(g + 64), lo, lo * 2.6)[64:] * env(g, 0.0005, g / SR, 4)
+        drops[at: at + g] += grain[: max(0, min(g, n - at))] * (0.55 - k * 0.04)
+    x = crack + cleave + body + squelch + drops
+    x = saturate(normalize(x), 2.2)
+    return reverb(x, 0.35, 0.14, 3500)
+
+
 def cry(text, shift=1.24, length=0.75, drive=3.4):
     """Dramatic pained cry: cracks upward, then falls away with a shaky,
     breathy vibrato and a longer echo."""
@@ -350,6 +390,10 @@ def main():
     save("bossDefeat", reverb(mix((taiko(1.0), 0), (taiko(1.0) * 0.8, 0.28), (gong(98, 3.2) * 0.7, 0.55)), 1.2, 0.3))
     save("pause", mix((wood_block(1100, 0.1), 0), (wood_block(800, 0.12), 0.09)))
     save("menu", wood_block(1300, 0.07) * 0.6)
+    # Last, so the random noise used by every sound above is unchanged.
+    print("Opening line:")
+    save("jigoku", battle_cry("じごくにかえれっ！"))  # 地獄に帰れ! - "Go back to hell!"
+    save("chop", chop())  # axe into flesh, under her line
     print(f"Done - files are in {OUT}")
 
 

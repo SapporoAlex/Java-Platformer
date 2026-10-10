@@ -3,12 +3,16 @@
 //   1. black -> opening1 fades in, held ~1s (slow push-in)
 //   2. a black wipe with a feathered edge rolls down from the top
 //   3. flash -> opening2, sword swish
-//   4. flash to white, dissolving to opening3, kiai shout + thud
+//   4. flash to white, dissolving to opening3 as blood flicks across the
+//      screen and fades; an axe-on-flesh chop, and she shouts 地獄に帰れ!
+//      ("Go back to hell!")
 //   5. fade to black -> the menu fades in
 //
 // Browsers won't play sound before the player interacts, so it starts behind
 // a "Press any key / Tap to begin" prompt; that first press unlocks audio and
 // starts the sequence. Any press during the sequence skips to the menu.
+import { BloodSpatter } from './blood.js';
+
 export const OPENING_IMAGES = ['assets/opening1.jpg', 'assets/opening2.jpg', 'assets/opening3.jpg'];
 
 export function preloadOpening() {
@@ -36,6 +40,12 @@ export class Opening {
     this.timers = [];
     this.animations = [];
     this.q = (sel) => root.querySelector(sel);
+
+    // The strike's blood spray: the game's own flicked-blood renderer on a
+    // layer above the third image (and under the white flash).
+    this.blood = new BloodSpatter();
+    this.blood.canvas.className = 'op-blood';
+    root.insertBefore(this.blood.canvas, this.q('.op-white'));
 
     // Capture phase on window: this sees the key/tap before the menus and the
     // game's input do, and stops it there, so pressing a key to start the
@@ -119,12 +129,17 @@ export class Opening {
       this.sfx?.play('slash');
     });
 
-    // 4. Flash to white, dissolve to the third image, kiai + thud
+    // 4. Flash to white, dissolve to the third image: "Jigoku ni kaere!"
+    // The chop lands exactly with the white flash.
     this.at(3400, () => {
       this.track(anim(white, [{ opacity: 0 }, { opacity: 1 }], 110, { easing: 'linear' }));
-      this.sfx?.play('attack');
-      this.sfx?.play('hit');
+      this.sfx?.play('chop');
+      this.sfx?.play('slash');
     });
+    this.at(3460, () => this.sfx?.play('jigoku'));
+    // Blood flicks across the screen as the white clears, then fades away.
+    this.at(3540, () => this.splatter());
+    this.at(4350, () => this.track(anim(this.blood.canvas, [{ opacity: 1 }, { opacity: 0 }], 1300, { easing: 'ease-in' })));
     this.at(3520, () => {
       img2.style.opacity = 0;
       img3.style.opacity = 1;
@@ -137,11 +152,28 @@ export class Opening {
     this.at(5750, () => this.finish(false));
   }
 
+  splatter() {
+    const { blood } = this;
+    blood.scale = 1.8;
+    blood.spray(1100, 520, 2.4);
+    blood.spray(820, 600, 1.6);
+    // Land the droplets over a few frames (they're staggered for the flick).
+    let frames = 0;
+    const step = setInterval(() => {
+      blood.update();
+      if (++frames > 40) clearInterval(step);
+    }, 16);
+    this.timers.push(step);
+  }
+
   // Ends the sequence (skipped or finished) and fades the menu in.
   finish(skipped) {
     if (this.state === 'done') return;
     this.state = 'done';
-    for (const t of this.timers) clearTimeout(t);
+    for (const t of this.timers) {
+      clearTimeout(t);
+      clearInterval(t);
+    }
     for (const a of this.animations) a.cancel();
     this.timers = [];
     this.animations = [];
