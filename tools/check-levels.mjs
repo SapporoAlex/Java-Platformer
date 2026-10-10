@@ -88,6 +88,15 @@ function check(index) {
       const land = simulate(level, cur.x, cur.feetY, plan);
       if (land && !seen.has(key(land.x, land.feetY))) queue.push(land);
     }
+    // Also try lining up at the very edges of this platform, like a player
+    // creeping to the brink before a long jump.
+    for (const dir of [-1, 1]) {
+      const probe = { x: cur.x, y: cur.feetY - 216, w: 84, h: 216 };
+      const maxX = level.widthPx - probe.w;
+      while (level.hasFloor(probe) && probe.x > 0 && probe.x < maxX) probe.x += dir * 4;
+      probe.x = Math.max(0, Math.min(maxX, probe.x - dir * 4));
+      if (!seen.has(key(probe.x, cur.feetY))) queue.push({ x: probe.x, feetY: cur.feetY });
+    }
   }
   const unreachableDoors = doors.filter((d) => !reachedCols.get(d.feetY)?.has(d.col));
   const coins = level.spawns.filter((s) => s.type === 'c' || s.type === 'h');

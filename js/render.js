@@ -20,6 +20,7 @@ export const THEMES = {
   night: {
     skyTop: '#0f1630', skyBottom: '#3c4b73', sun: '#f5ecc8', mist: '#6d7aa3', ridge: '#141b30', ridgeFar: '#2e3a5e',
     grass: '#3e5e48', earthTint: 'rgba(10,20,60,0.35)', petals: null, stars: true,
+    cloud: '#d6dcef', cloudShade: '#97a2c7',
   },
   desert: {
     skyTop: '#e7b46a', skyBottom: '#f7e6c4', sun: '#e2572d', mist: '#fff1d6', ridge: '#b07a45', ridgeFar: '#d8ac78',
@@ -263,6 +264,14 @@ export class WorldRenderer {
           if (!solidLike(col + 1, row)) edgeShade(ctx, x, y, 'right');
           if (row + 1 < level.rows && !solidLike(col, row + 1)) edgeShade(ctx, x, y, 'bottom');
           if (exposedTop) this.drawLip(ctx, t.style, x, y, col, row, theme, !solidLike(col - 1, row - 0), !solidLike(col + 1, row));
+        } else if (t.style === 'cloud') {
+          // A run of cloud cells is drawn as one cloud, once, from its first cell.
+          if (col > c0 && level.grid[row][col - 1] === '~') continue;
+          let start = col;
+          while (start > 0 && level.grid[row][start - 1] === '~') start--;
+          let end = col;
+          while (end + 1 < level.cols && level.grid[row][end + 1] === '~') end++;
+          drawCloud(ctx, start * TILE, (end + 1) * TILE, y, theme, start * 31 + row);
         } else if (t.kind === 'oneway') {
           const img = tiles[t.tile];
           // Little brackets under the board read as "you can pass under this".
@@ -326,6 +335,63 @@ export class WorldRenderer {
     ctx.fillRect(x, y - 2, TILE + 1, 4);
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(x, y + h, TILE + 1, 6);
+  }
+}
+
+// A standable ukiyo-e cloud: scalloped puffs along the top (where feet
+// land), a flatter shaded underside, and a curling swirl or two.
+function drawCloud(ctx, x0, x1, y, theme, seed) {
+  const fill = theme.cloud ?? '#fbf5e6';
+  const shade = theme.cloudShade ?? '#e3d2ae';
+  const w = x1 - x0;
+  const puffs = Math.max(2, Math.round(w / 70));
+  const step = (w + 40) / puffs;
+  const top = y + 6;
+  const bottom = y + 62;
+  const trace = () => {
+    ctx.beginPath();
+    ctx.moveTo(x0 - 20, bottom - 18);
+    for (let i = 0; i < puffs; i++) {
+      const px = x0 - 20 + step * (i + 0.5);
+      const r = step * 0.55 * (0.9 + hash(seed, i) * 0.25);
+      ctx.arc(px, top + r * 0.5, r, Math.PI * 1.05, Math.PI * 1.95);
+    }
+    ctx.quadraticCurveTo(x1 + 34, bottom - 22, x1 + 6, bottom);
+    for (let i = puffs * 2 - 1; i >= 0; i--) {
+      const px = x0 - 20 + (step / 2) * (i + 0.5);
+      ctx.arc(px, bottom - 6, step / 4, 0.1, Math.PI - 0.1, false);
+    }
+    ctx.quadraticCurveTo(x0 - 40, bottom - 4, x0 - 20, bottom - 18);
+    ctx.closePath();
+  };
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.translate(0, 16);
+  trace();
+  ctx.fill();
+  ctx.restore();
+  const g = ctx.createLinearGradient(0, top - 30, 0, bottom);
+  g.addColorStop(0, fill);
+  g.addColorStop(0.65, fill);
+  g.addColorStop(1, shade);
+  ctx.fillStyle = g;
+  trace();
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+  // Swirls
+  ctx.lineWidth = 3.5;
+  for (let i = 0; i < Math.max(1, Math.floor(w / 220)); i++) {
+    const sx = x0 + w * (0.3 + 0.4 * hash(seed + 5, i)) + i * 40;
+    const sy = y + 34;
+    ctx.beginPath();
+    for (let a = 0; a < Math.PI * 3; a += 0.25) {
+      const r = 4 + a * 4;
+      ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r * 0.6);
+    }
+    ctx.stroke();
   }
 }
 

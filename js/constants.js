@@ -90,6 +90,9 @@ export const GHOST_DIVE_SPEED = 13;
 export const GHOST_TRIGGER_X = 520;
 export const GHOST_COOLDOWN_TICKS = 110;
 export const GHOST_DAMAGE = 10;
+// Highest a ghost may hover above the floor below it (feet to floor). Keeps
+// every ghost low enough to dive onto a player on the ground.
+export const GHOST_MAX_HOVER = 2.6 * TILE;
 
 export const LANTERN_W = 110;
 export const LANTERN_H = 150;
@@ -115,6 +118,9 @@ export const BOSS_LUNGE_SPEED = 15;
 export const BOSS_REACH = 260;
 export const BOSS_ATTACK_TRIGGER = 420;
 export const BOSS_DEATH_TICKS = 90;
+// Scales every boss's damage (slash, contact and fireballs) on top of the
+// per-boss attackStrength in levels-data.js.
+export const BOSS_DAMAGE_MULTIPLIER = 2;
 
 // --- Pickups ----------------------------------------------------------------
 export const COIN_SIZE = 70;

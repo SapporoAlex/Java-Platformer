@@ -11,7 +11,7 @@ import {
   LANTERN_W, LANTERN_H, LANTERN_HEALTH, LANTERN_INTERVAL_TICKS, LANTERN_WINDUP_TICKS, LANTERN_DAMAGE,
   FIREBALL_SPEED, FIREBALL_SIZE, FIREBALL_DAMAGE, FIREBALL_LIFE_TICKS,
   BOSS_W, BOSS_H, BOSS_SPEED, BOSS_JUMP_VELOCITY, BOSS_WINDUP_TICKS, BOSS_ACTIVE_TICKS, BOSS_RECOVER_TICKS,
-  BOSS_LUNGE_SPEED, BOSS_REACH, BOSS_ATTACK_TRIGGER, BOSS_DEATH_TICKS,
+  BOSS_LUNGE_SPEED, BOSS_REACH, BOSS_ATTACK_TRIGGER, BOSS_DEATH_TICKS, BOSS_DAMAGE_MULTIPLIER,
   COIN_SIZE, DROPPED_COIN_LIFE_TICKS,
 } from './constants.js';
 
@@ -381,14 +381,15 @@ export class Ghost extends Enemy {
         const len = Math.hypot(dx, dy) || 1;
         this.dvx = (dx / len) * GHOST_DIVE_SPEED;
         this.dvy = (dy / len) * GHOST_DIVE_SPEED;
+        // Fly all the way to where the player was (plus a little overshoot),
+        // so a ghost can always reach someone standing on the ground below.
+        this.diveTicks = Math.min(90, Math.ceil((len + 120) / GHOST_DIVE_SPEED));
         this.setMode('dive');
       }
     } else if (this.mode === 'dive') {
       this.x += this.dvx;
       this.y += this.dvy;
-      this.dvx *= 0.985;
-      this.dvy *= 0.985;
-      if (this.modeTick > 46) this.setMode('return');
+      if (this.modeTick > this.diveTicks) this.setMode('return');
     } else if (this.mode === 'return') {
       const tx = Math.max(this.homeX - this.range, Math.min(this.homeX + this.range, this.x));
       this.x += (tx - this.x) * 0.04;
@@ -488,7 +489,7 @@ export class Lantern extends Enemy {
 // phase: faster, shorter wind-ups.
 export class Boss extends Enemy {
   constructor(art, x, feetY, config) {
-    super(BOSS_W, BOSS_H, config.health ?? 200, config.attackStrength ?? 15);
+    super(BOSS_W, BOSS_H, config.health ?? 200, (config.attackStrength ?? 15) * BOSS_DAMAGE_MULTIPLIER);
     this.art = art;
     this.config = config;
     this.name = config.name ?? 'Boss';

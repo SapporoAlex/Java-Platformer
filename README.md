@@ -1,4 +1,4 @@
-# Monster Land
+# Geisha in Kaibutsuland
 
 An ukiyo-e action platformer in the spirit of *Wonder Boy in Monster Land*:
 a wandering swordswoman fights through 11 stages of yokai, spends the gold
@@ -51,6 +51,14 @@ touch devices, on-screen buttons appear.
   It can hit several enemies at once and cuts fireballs out of the air.
   Hits freeze the action for a few frames (hit-stop), shake the screen, flash
   the enemy and knock it back.
+- **Blood spatter:** every hit, whether you land it or take it, flicks bright
+  red droplets across the screen, like the flicked-paint snowstorms in hanga
+  prints. They stay put, building up and obscuring the view, until the stage
+  ends or you lose a life (`js/blood.js`).
+- **Clouds** are platforms you can stand on and jump up through. They form
+  routes into the sky, usually with coins along them.
+- **Ghosts** always hover low enough to swoop down on you at ground level,
+  and their dive flies all the way to where you were standing.
 - **Enemies drop gold** (and sometimes a heart) that pops out and bounces.
   Dropped gold blinks away after ~9 seconds.
 - **Health is shown as hearts** (20 HP each). Shop upgrades add heart
@@ -58,7 +66,8 @@ touch devices, on-screen buttons appear.
 - **Bosses:** walking into a boss arena seals it behind you. The boss
   telegraphs its slash (lean back, flash), lunges, then recovers, which is
   your window to strike. Below half health it speeds up. The exit door stays
-  sealed until the boss falls.
+  sealed until the boss falls. Boss damage is doubled across the board by
+  `BOSS_DAMAGE_MULTIPLIER` in `constants.js`.
 - **Progress** (the furthest stage reached) is saved in the browser, and the
   title screen offers "Continue". Game Over offers a continue that keeps your
   upgrades but halves your gold.
@@ -89,6 +98,7 @@ tools/
   serve.py           no-cache dev server
   check-levels.mjs   proves every stage can be finished (see below)
   clean_sprites.py   strips baked-in "transparency" checkerboards from frames
+  make_icons.py      builds the favicon / app icons from the heroine's face
 ```
 
 ## Editing levels
@@ -100,6 +110,7 @@ full legend is at the top of `js/level.js`:
 ```
 #  ground          =  sand          :  packed earth     %  stone block
 -  shrine beam (jump-through)       _  wooden plank (jump-through)
+~  cloud (jump-through)
 ^  bamboo spikes (hurt + bounce)
 P  player start    c  coin          h  heart
 o  oni             g  ghost         l  haunted lantern
@@ -122,6 +133,10 @@ jump from every reachable spot. It reports any stage whose exit or shop
 doors can't be reached, plus any coins that are out of reach.
 
 ## Art
+
+The favicon and app icons (`icons/`) are her face, cropped from
+`assets/player_idle_right1.png`. If you change her art, rebuild them with
+`python tools/make_icons.py`.
 
 Every image lives in `/assets/` and is loaded by `js/assets.js`.
 Filenames are fixed: to replace art, overwrite the file at the same path.

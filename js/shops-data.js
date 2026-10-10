@@ -29,7 +29,7 @@ export const SHOPS = {
       { id: 'potion', kind: 'potion', label: 'Health Potion', description: 'Restore 50 HP', cost: 5, amount: 50 },
       {
         id: 'vitality', kind: 'maxHealthPercent', label: 'Vitality Elixir',
-        description: '+50% max HP, permanently', cost: 15, amount: 0.5,
+        description: '+50% max HP, permanently', cost: 45, amount: 0.5,
       },
     ],
   },
@@ -67,10 +67,10 @@ export const SHOPS = {
     greeting: 'Ah... I sensed you coming, swordswoman.',
     theme: { from: '#1c1030', to: '#4a2a70', accent: '#c9a8ff' },
     items: [
-      { id: 'charm', kind: 'heart', label: 'Warding Charm', description: '+30 max HP', cost: 12, amount: 30 },
+      { id: 'charm', kind: 'heart', label: 'Warding Charm', description: '+30 max HP', cost: 36, amount: 30 },
       { id: 'tonic', kind: 'fullheal', label: 'Mystic Tonic', description: 'Fully restore HP', cost: 8 },
       {
-        id: 'boots', kind: 'floatBoots', label: 'Boots of Floatiness',
+        id: 'boots', kind: 'floatBoots', label: 'Geta of Floatiness',
         description: 'Floatier jumps, slower falls', cost: 8, amount: 0.5, oneTime: true,
       },
     ],

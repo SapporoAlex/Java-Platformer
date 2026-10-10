@@ -11,6 +11,7 @@ import { TILE } from './constants.js';
 //   -  shrine beam (4.png)       jump-through: land on it from above, jump
 //                                up through it from below, Down+Jump drops
 //   _  wooden plank (3.png)      jump-through
+//   ~  cloud                     jump-through (drawn in code, no tile art)
 //   ^  bamboo spikes             hazard: hurts and bounces the player
 //
 // Things (the cell itself is empty space):
@@ -30,6 +31,7 @@ export const TERRAIN = {
   '%': { tile: 5, kind: 'solid', style: 'stone' },
   '-': { tile: 4, kind: 'oneway', style: 'beam' },
   _: { tile: 3, kind: 'oneway', style: 'plank' },
+  '~': { tile: 0, kind: 'oneway', style: 'cloud' },
   '^': { tile: 0, kind: 'hazard', style: 'spikes' },
 };
 

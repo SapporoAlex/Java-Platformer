@@ -2,7 +2,8 @@ import {
   TILE, CANVAS_WIDTH, CANVAS_HEIGHT, VIEW_SCALE, VIEW_WIDTH, VIEW_HEIGHT, LEFT_FACING,
   MAX_HEALTH, HEART_VALUE, BASE_ATTACK, ATTACK_TOTAL_TICKS, ATTACK_ACTIVE_START, ATTACK_ACTIVE_END,
   STARTING_LIVES, MAX_LIVES, LEVEL_INTRO_TICKS, DEATH_ANIM_TICKS, VICTORY_VARIANT_COUNT,
-  HITSTOP_HIT, HITSTOP_KILL, HITSTOP_HURT, HEART_DROP_CHANCE, HEART_PICKUP_HEAL,
+  HITSTOP_HIT, HITSTOP_KILL, HITSTOP_HURT, HEART_DROP_CHANCE, HEART_PICKUP_HEAL, GHOST_MAX_HOVER,
+  BOSS_DAMAGE_MULTIPLIER,
 } from './constants.js';
 import {
   Player, Oni, Ghost, Lantern, Boss, Fireball, Pickup, Door, drawHeart,
@@ -13,6 +14,7 @@ import { LEVELS } from './levels-data.js';
 import { SHOPS } from './shops-data.js';
 import { Effects } from './fx.js';
 import { WorldRenderer, THEMES } from './render.js';
+import { BloodSpatter } from './blood.js';
 
 const HUD_FONT = '"Shippori Mincho B1", "Yu Mincho", serif';
 
@@ -34,6 +36,7 @@ export class Game {
     this.music = music;
     this.fx = new Effects();
     this.world = new WorldRenderer(art);
+    this.blood = new BloodSpatter();
     this.state = 'start';
     this.time = 0;
     this.levelIndex = 0;
@@ -124,6 +127,7 @@ export class Game {
     this.levelGold = 0;
     this.levelKills = 0;
     this.fx.clear();
+    this.blood.clear(); // spatter lasts until the stage ends or a life is lost
 
     let start = { x: TILE * 1.5, feetY: TILE * 10 };
     for (const s of level.spawns) {
@@ -132,7 +136,7 @@ export class Game {
         case 'c': this.pickups.push(new Pickup('coin', s.x, s.feetY - TILE / 2)); break;
         case 'h': this.pickups.push(new Pickup('heart', s.x, s.feetY - TILE / 2)); break;
         case 'o': this.enemies.push(new Oni(art.oni, s.x, s.feetY)); break;
-        case 'g': this.enemies.push(new Ghost(art.ghost, s.x, s.feetY, data.ghostRange ?? 3)); break;
+        case 'g': this.enemies.push(new Ghost(art.ghost, s.x, this.ghostHoverFeet(level, s), data.ghostRange ?? 3)); break;
         case 'l': this.lanterns.push(new Lantern(art.lantern, s.x, s.feetY)); break;
         case 'E': this.doors.push(new Door('exit', s.x, s.feetY, art.doorExit)); break;
         case 'S': this.doors.push(new Door('shop', s.x, s.feetY, art.doorShop, s.shopId)); break;
@@ -160,6 +164,20 @@ export class Game {
     this.hitstop = 0;
     this.fade = 0;
     this.doorTransition = null;
+  }
+
+  // Ghosts hover no higher than GHOST_MAX_HOVER above the floor beneath
+  // them (whatever the map says), so their swoop always reaches a player
+  // walking along the lower ground.
+  ghostHoverFeet(level, spawn) {
+    let floorRow = level.rows;
+    for (let row = spawn.row + 1; row < level.rows; row++) {
+      if (level.terrainAt(spawn.col, row)) {
+        floorRow = row;
+        break;
+      }
+    }
+    return Math.max(spawn.feetY, floorRow * TILE - GHOST_MAX_HOVER);
   }
 
   // ------------------------------------------------------------------------
@@ -304,6 +322,7 @@ export class Game {
   }
 
   updatePlaying(input) {
+    this.blood.update();
     if (this.hitstop > 0) {
       this.hitstop--;
       return;
@@ -419,6 +438,7 @@ export class Game {
       const hx = player.facing === LEFT_FACING ? Math.max(hitbox.left, e.left) : Math.min(hitbox.right, e.right);
       const hy = Math.max(hitbox.top, Math.min(hitbox.bottom, e.centerY));
       fx.sparks(hx, hy, player.facing, 12);
+      this.splatter(hx, hy, 1);
       if (killed) {
         this.hitstop = HITSTOP_KILL;
         this.shake = Math.max(this.shake, 10);
@@ -455,8 +475,14 @@ export class Game {
     if (Math.random() < heartChance) this.pickups.push(new Pickup('heart', x, y, { dropped: true }));
   }
 
+  // Flicks blood onto the screen from a hit at world position (x, y).
+  splatter(x, y, strength) {
+    this.blood.spray((x - this.camX) * VIEW_SCALE, (y - this.camY) * VIEW_SCALE, strength);
+  }
+
   hurtPlayer(amount, fromX) {
     if (!this.player.hurt(amount, fromX)) return;
+    this.splatter(this.player.centerX, this.player.centerY, 1.6);
     this.hitstop = HITSTOP_HURT;
     this.shake = Math.max(this.shake, 14);
     this.sfx?.play('hurt');
@@ -501,7 +527,7 @@ export class Game {
 
     const shot = boss.update(level, player, this.arena);
     if (shot) {
-      this.fireballs.push(new Fireball(this.art.fireball, shot, 10));
+      this.fireballs.push(new Fireball(this.art.fireball, shot, 10 * BOSS_DAMAGE_MULTIPLIER));
       this.sfx?.play('fireball');
     }
     for (const ev of boss.events) {
@@ -564,6 +590,7 @@ export class Game {
 
   updateDying() {
     this.deathTick++;
+    this.blood.update();
     const p = this.player;
     // A brief freeze, then the classic hop-and-fall off the screen.
     if (this.deathTick > 24 && this.deathCause !== 'fall') {
@@ -668,6 +695,7 @@ export class Game {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.renderVignette(ctx);
+    this.blood.draw(ctx);
     this.renderHud(ctx);
     if (this.fade > 0) {
       ctx.fillStyle = `rgba(12,6,4,${this.fade})`;
@@ -826,7 +854,9 @@ export class Game {
     ctx.fillStyle = '#f4ecd8';
     ctx.fill();
     ctx.clip();
-    ctx.drawImage(portrait, portrait.width * 0.22, 0, portrait.width * 0.56, portrait.width * 0.56, px - 46, 22, 92, 92);
+    // Same head crop as the favicon (tools/make_icons.py), relative to the 408px-wide frame.
+    const k = portrait.width / 408;
+    ctx.drawImage(portrait, 150 * k, 12 * k, 130 * k, 130 * k, px - 42, 24, 84, 84);
     ctx.restore();
     ctx.lineWidth = 6;
     ctx.strokeStyle = '#1b1210';

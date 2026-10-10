@@ -24,6 +24,7 @@ const screens = {
   paused: $('paused-screen'),
 };
 
+// Storage keys keep the game's original name so existing saves carry over.
 const SAVE_KEY = 'monsterland.progress';
 const MUTE_KEY = 'monsterland.muted';
 

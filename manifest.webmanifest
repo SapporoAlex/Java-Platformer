@@ -1,6 +1,6 @@
 {
-  "name": "Monster Land",
-  "short_name": "Monster Land",
+  "name": "Geisha in Kaibutsuland",
+  "short_name": "Geisha",
   "description": "A wandering swordswoman in a land overrun by yokai - an ukiyo-e action platformer",
   "start_url": "./index.html",
   "scope": "./",
